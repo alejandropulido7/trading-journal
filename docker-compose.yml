@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # 1. Base de Datos Postgres
+  db:
+    image: postgres:15-alpine
+    container_name: journal_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: trading_journal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Backend (FastAPI)
+  backend:
+    build: ./backend
+    container_name: journal_backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://admin:adminpassword@db:5432/trading_journal
+      # AQUÍ PONES LA URL DE TU VPS (Donde corre el .exe con HTTPS/Cloudflare)
+      VPS_MT5_URL: http://154.12.237.213:5000/api/sync-trades
+      VPS_API_KEY: 5XP1YNbJXd9LItCbpYlOBm2Omg4A0qOu
+
+  # 3. Frontend (Next.js) - Lo configuraremos después
+  # frontend:
+  #   build: ./frontend
+  #   ...
+
+volumes:
+  postgres_data:
