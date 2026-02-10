@@ -71,3 +71,11 @@ class Trade(Base):
     __table_args__ = (
         UniqueConstraint('ticket', 'account_id', name='unique_trade_per_account'),
     )
+
+class Server(Base):
+    __tablename__ = "servers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True) # Ej: FundedNext-Server
+    alias = Column(String) # Ej: FundedNext (Nombre bonito para mostrar)
+    active = Column(Boolean, default=True)

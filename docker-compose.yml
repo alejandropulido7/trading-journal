@@ -30,7 +30,7 @@ services:
       DATABASE_URL: postgresql://admin:adminpassword@db:5432/trading_journal
       # AQUÍ PONES LA URL DE TU VPS (Donde corre el .exe con HTTPS/Cloudflare)
       VPS_MT5_URL: http://154.12.237.213:5000/api/sync-trades
-      VPS_API_KEY: 5XP1YNbJXd9LItCbpYlOBm2Omg4A0qOu
+      VPS_API_KEY: kReQTSnBNXuijQwWpsyeZS9aIL1pKzDJ
 
   # 3. Frontend (Next.js) - Lo configuraremos después
   # frontend:

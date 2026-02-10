@@ -65,3 +65,44 @@ class AccountResponse(BaseModel):
     current_percent: float
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class DailyStat(BaseModel):
+    date: str       # Formato "YYYY-MM-DD"
+    profit: float
+    trades_count: int
+    wins: int
+    losses: int
+
+class CalendarResponse(BaseModel):
+    month_total_profit: float
+    month_win_rate: float
+    total_trades: int
+    days: List[DailyStat]
+
+# --- SERVERS SCHEMAS ---
+class ServerBase(BaseModel):
+    name: str
+    alias: str
+
+class ServerCreate(ServerBase):
+    pass
+
+class ServerResponse(ServerBase):
+    id: int
+    active: bool
+    model_config = ConfigDict(from_attributes=True)
+
+class ChartDataPoint(BaseModel):
+    date: str
+    balance: float
+
+class DashboardStats(BaseModel):
+    total_balance: float
+    total_pl: float
+    active_accounts: int
+    win_rate: float
+    recent_trades: List[TradeResponse]
+    
+    # NUEVO CAMPO: La curva de equidad
+    balance_curve: List[ChartDataPoint]
