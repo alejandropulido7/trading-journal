@@ -43,6 +43,10 @@ class AccountCreate(BaseModel):
     risk_per_trade: float
     target_percent: float
     investment: float
+    trailing_drawdown: bool
+    daily_drawdown_limit: float
+    max_drawdown_limit: float
+    consistency_rule: float
 
 class AccountResponse(BaseModel):
     id: int
@@ -58,6 +62,11 @@ class AccountResponse(BaseModel):
     risk_per_trade: float
     target_percent: float
     investment: float
+
+    trailing_drawdown: bool
+    daily_drawdown_limit: float
+    max_drawdown_limit: float
+    consistency_rule: float
     
     # Estos campos NO están en la tabla SQL, pero Pydantic los leerá
     # de las funciones @property de models.Account
@@ -97,6 +106,26 @@ class ChartDataPoint(BaseModel):
     date: str
     balance: float
 
+class RiskMetrics(BaseModel):
+    account_alias: str
+    current_balance: float
+    initial_balance: float
+    
+    # Drawdown
+    is_trailing: bool
+    max_drawdown_percent: float
+    high_water_mark: float # Balance máximo alcanzado
+    drawdown_limit_price: float # Precio donde pierdes la cuenta
+    current_drawdown_amount: float # Dinero perdido desde el pico
+    drawdown_progress: float # % de la barra roja (0 a 100)
+
+    # Consistencia
+    consistency_rule_percent: float
+    highest_daily_profit: float
+    profit_target_for_consistency: float
+    consistency_progress: float # % de la barra verde
+    is_in_drawdown: bool # Para poner la barra en 0 si pierde dinero
+
 class DashboardStats(BaseModel):
     total_balance: float
     total_pl: float
@@ -106,3 +135,18 @@ class DashboardStats(BaseModel):
     
     # NUEVO CAMPO: La curva de equidad
     balance_curve: List[ChartDataPoint]
+    best_trade: float
+    worst_trade: float
+    average_win: float
+    average_loss: float
+    highest_profitable_day: float
+    total_trades_count: int
+    profit_factor: float
+    average_rrr: float
+    sharpe_ratio: float
+    z_score: float
+    risk_metrics: List[RiskMetrics]
+
+class AccountUpdate(BaseModel):
+    alias: Optional[str] = None
+    active: Optional[bool] = None

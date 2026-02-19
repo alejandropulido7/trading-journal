@@ -21,6 +21,12 @@ class Account(Base):
     risk_per_trade = Column(Float, default=1.0)
     target_percent = Column(Float, default=0.0)
     investment = Column(Float, default=0.0)
+
+    #Drawdown and target
+    trailing_drawdown = Column(Boolean, default=False) # ¿Es trailing o estático?
+    daily_drawdown_limit = Column(Float, default=0.0)  # % (Ej: 5.0)
+    max_drawdown_limit = Column(Float, default=0.0)    # % (Ej: 10.0)
+    consistency_rule = Column(Float, default=0.0)
     
     # Estado
     active = Column(Boolean, default=True)

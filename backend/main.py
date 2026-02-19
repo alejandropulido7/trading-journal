@@ -13,6 +13,7 @@ from sqlalchemy import func, desc
 from sqlalchemy import extract
 from security import security
 from routers import servers
+import statistics
 
 # Crear tablas al iniciar
 models.Base.metadata.create_all(bind=database.engine)
@@ -59,6 +60,7 @@ class AccountResponse(AccountCreate):
 @app.post("/accounts/", response_model=schemas.AccountResponse)
 def create_account(account: schemas.AccountCreate, db: Session = Depends(database.get_db)):
     encrypted_password = security.encrypt(account.password)
+    print(account)
     db_acc = models.Account(
         # Datos de conexión
         login_id=account.login_id,
@@ -77,6 +79,11 @@ def create_account(account: schemas.AccountCreate, db: Session = Depends(databas
         risk_per_trade=account.risk_per_trade,
         target_percent=account.target_percent,
         investment=account.investment,
+
+        trailing_drawdown = account.trailing_drawdown, # ¿Es trailing o estático?
+        daily_drawdown_limit = account.daily_drawdown_limit,  # % (Ej: 5.0)
+        max_drawdown_limit = account.max_drawdown_limit,    # % (Ej: 10.0)
+        consistency_rule = account.consistency_rule,
         
         # Por defecto la cuenta nace activa
         active=True 
@@ -90,6 +97,36 @@ def create_account(account: schemas.AccountCreate, db: Session = Depends(databas
 @app.get("/accounts/", response_model=List[schemas.AccountResponse])
 def get_accounts(db: Session = Depends(database.get_db)):
     return db.query(models.Account).all()
+
+# 2. Endpoint DELETE
+@app.delete("/accounts/{account_id}")
+def delete_account(account_id: int, db: Session = Depends(database.get_db)):
+    account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    
+    # Opcional: Borrar también los trades asociados
+    db.query(models.Trade).filter(models.Trade.account_id == account_id).delete()
+    
+    db.delete(account)
+    db.commit()
+    return {"message": "Cuenta eliminada correctamente"}
+
+@app.patch("/accounts/{account_id}", response_model=schemas.AccountResponse)
+def update_account(account_id: int, account_update: schemas.AccountUpdate, db: Session = Depends(database.get_db)):
+    db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    if not db_account:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    
+    # Actualizamos solo los campos que vienen en el payload
+    if account_update.alias is not None:
+        db_account.alias = account_update.alias
+    if account_update.active is not None:
+        db_account.active = account_update.active
+        
+    db.commit()
+    db.refresh(db_account)
+    return db_account
 
 # 3. LÓGICA DE SINCRONIZACIÓN (El botón mágico)
 @app.post("/sync-all")
@@ -112,7 +149,7 @@ def sync_all_accounts(db: Session = Depends(database.get_db)):
         # Si hay fecha, usamos esa. Si es cuenta nueva, usamos fecha antigua.
         # Le damos un margen de 1 minuto atrás para evitar perder trades por segundos
         if last_trade_date:
-            sync_date_str = last_trade_date.strftime("%Y-%m-%d %H:%M:%S")
+            sync_date_str = last_trade_date.strftime("%Y-%m-%d 00:00:00")
         else:
             sync_date_str = "2020-01-01 00:00:00"
 
@@ -264,6 +301,7 @@ def get_dashboard_stats(
 
     # b. Traemos TODOS los trades ordenados por fecha (ascendente) para ir sumando
     all_trades = query_trades.order_by(models.Trade.close_time).all()
+    profits = [t.profit for t in all_trades]
 
     # c. Agrupamos profit por día
     daily_profit_map = {}
@@ -330,13 +368,175 @@ def get_dashboard_stats(
         t_resp.account_alias = t.account.alias 
         recent_trades_mapped.append(t_resp)
 
+    # 1. Básicos
+    total_trades_count = len(profits)
+    best_trade = max(profits) if profits else 0.0
+    worst_trade = min(profits) if profits else 0.0
+    
+    wins = [p for p in profits if p > 0]
+    losses = [p for p in profits if p < 0]
+    
+    avg_win = statistics.mean(wins) if wins else 0.0
+    avg_loss = statistics.mean(losses) if losses else 0.0
+
+    # 2. Profit Factor (Gross Profit / Gross Loss)
+    gross_profit = sum(wins)
+    gross_loss = abs(sum(losses))
+    profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0.0
+
+    # 3. Average RRR (Payoff Ratio: Avg Win / Avg Loss)
+    # Nota: El RRR real requiere saber el SL inicial. Usamos Payoff Ratio como aproximación.
+    average_rrr = round(avg_win / abs(avg_loss), 2) if avg_loss != 0 else 0.0
+
+    # 4. Highest Profitable Day
+    daily_sums = {}
+    for t in all_trades:
+        day = t.close_time.strftime("%Y-%m-%d")
+        daily_sums[day] = daily_sums.get(day, 0) + t.profit
+    
+    highest_profitable_day = max(daily_sums.values()) if daily_sums else 0.0
+
+    # 5. Sharpe Ratio (Simplificado por Trade)
+    # Sharpe = Promedio Retorno / Desviación Estándar
+    sharpe_ratio = 0.0
+    if len(profits) > 1:
+        stdev = statistics.stdev(profits)
+        if stdev != 0:
+            sharpe_ratio = round(statistics.mean(profits) / stdev, 2)
+
+    # 6. Z-Score (Probabilidad de rachas)
+    z_score = 0.0
+    if len(profits) > 2:
+        # Contamos "Runs" (Rachas: W W L L W = 3 rachas)
+        runs = 0
+        if total_trades_count > 0:
+            runs = 1
+            for i in range(1, total_trades_count):
+                # Si el signo cambia, es una nueva racha
+                prev_sign = 1 if profits[i-1] >= 0 else -1
+                curr_sign = 1 if profits[i] >= 0 else -1
+                if prev_sign != curr_sign:
+                    runs += 1
+        
+        total_wins = len(wins)
+        total_losses = len(losses)
+        N = total_trades_count
+
+        if total_wins > 0 and total_losses > 0:
+            # Fórmula Z-Score de Trading
+            x = 2 * total_wins * total_losses
+            expected_runs = (x / N) + 1
+            std_deviation = ((expected_runs - 1) * (expected_runs - 2)) / (N - 1)
+            
+            if std_deviation > 0:
+                z_score = round((runs - expected_runs) / (std_deviation ** 0.5), 2)
+
+    
+    risk_metrics_list = []
+
+    for acc in active_accounts:
+        # 1. Obtener trades de ESTA cuenta para calcular su High Water Mark
+        acc_trades = db.query(models.Trade).filter(models.Trade.account_id == acc.id).order_by(models.Trade.close_time).all()
+        
+        # Calcular curva de balance para hallar el High Water Mark (Pico más alto)
+        temp_balance = acc.initial_balance
+        high_water_mark = acc.initial_balance
+        highest_daily_profit = 0.0
+        
+        # Mapa para consistencia (suma por días)
+        daily_profits = {}
+
+        for t in acc_trades:
+            temp_balance += t.profit
+            if temp_balance > high_water_mark:
+                high_water_mark = temp_balance
+            
+            day_str = t.close_time.strftime("%Y-%m-%d")
+            daily_profits[day_str] = daily_profits.get(day_str, 0) + t.profit
+
+        if daily_profits:
+            highest_daily_profit = max(daily_profits.values())
+
+        # --- CÁLCULO DRAWDOWN ---
+        # Límite máximo de pérdida
+        if acc.trailing_drawdown:
+            # Trailing: El límite sube con el High Water Mark
+            # Límite = Pico Máximo - (Pico Máximo * %MaxDD)
+            limit_price = high_water_mark - (high_water_mark * (acc.max_drawdown_limit / 100))
+        else:
+            # Estático: Basado en balance inicial
+            limit_price = acc.initial_balance - (acc.initial_balance * (acc.max_drawdown_limit / 100))
+        
+        # Distancia actual al límite
+        # Total espacio permitido = HWM - Límite (Trailing) o Inicial - Límite (Estático)
+        if acc.trailing_drawdown:
+            total_allowable_loss = high_water_mark * (acc.max_drawdown_limit / 100)
+            current_loss_from_peak = high_water_mark - acc.balance
+        else:
+            total_allowable_loss = acc.initial_balance * (acc.max_drawdown_limit / 100)
+            current_loss_from_peak = acc.initial_balance - acc.balance
+
+        # Porcentaje de la barra roja (0% = a salvo, 100% = cuenta quemada)
+        dd_progress = 0.0
+        if total_allowable_loss > 0:
+            dd_progress = (current_loss_from_peak / total_allowable_loss) * 100
+        
+        dd_progress = max(0.0, min(dd_progress, 100.0)) # Clampear entre 0 y 100
+
+        # --- CÁLCULO CONSISTENCIA ---
+        consistency_progress = 0.0
+        target_profit = 0.0
+        is_in_dd = acc.balance < acc.initial_balance
+
+        if acc.consistency_rule > 0 and highest_daily_profit > 0 and not is_in_dd:
+            # Regla: Mejor Día / % = Objetivo Total
+            # Ej: 200 / 0.25 = 800 Objetivo
+            target_profit = highest_daily_profit / (acc.consistency_rule / 100)
+            
+            current_profit = acc.balance - acc.initial_balance
+            if target_profit > 0:
+                consistency_progress = (current_profit / target_profit) * 100
+            
+            consistency_progress = max(0.0, min(consistency_progress, 100.0))
+        
+        risk_metrics_list.append({
+            "account_alias": acc.alias,
+            "current_balance": acc.balance,
+            "initial_balance": acc.initial_balance,
+            "is_trailing": acc.trailing_drawdown,
+            "max_drawdown_percent": acc.max_drawdown_limit,
+            "high_water_mark": high_water_mark,
+            "drawdown_limit_price": limit_price,
+            "current_drawdown_amount": current_loss_from_peak,
+            "drawdown_progress": dd_progress,
+            "consistency_rule_percent": acc.consistency_rule,
+            "highest_daily_profit": highest_daily_profit,
+            "profit_target_for_consistency": target_profit,
+            "consistency_progress": consistency_progress,
+            "is_in_drawdown": is_in_dd
+        })
+
     return {
+        # ... Tus campos existentes ...
         "total_balance": round(total_balance, 2),
         "total_pl": round(total_pl, 2),
         "active_accounts": count_active,
         "win_rate": round(win_rate, 2),
         "recent_trades": recent_trades_mapped,
-        "balance_curve": balance_curve # <--- Retornamos la nueva lista
+        "balance_curve": balance_curve,
+
+        # --- NUEVOS CAMPOS ---
+        "best_trade": round(best_trade, 2),
+        "worst_trade": round(worst_trade, 2),
+        "average_win": round(avg_win, 2),
+        "average_loss": round(avg_loss, 2),
+        "highest_profitable_day": round(highest_profitable_day, 2),
+        "total_trades_count": total_trades_count,
+        "profit_factor": profit_factor,
+        "average_rrr": average_rrr,
+        "sharpe_ratio": sharpe_ratio,
+        "z_score": z_score,
+        "risk_metrics": risk_metrics_list
     }
 
 @app.get("/calendar-stats", response_model=schemas.CalendarResponse)
