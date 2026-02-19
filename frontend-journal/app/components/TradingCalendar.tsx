@@ -136,10 +136,10 @@ export default function TradingCalendar({ selectedAccountId }: TradingCalendarPr
               key={idx} 
               className={`
                 min-h-[100px] p-2 flex flex-col justify-between transition-all
-                ${!isCurrentMonth ? "bg-slate-50/50 text-slate-300" : "bg-white"}
+                
                 ${hasTrades
-                    ? (isProfit ? "bg-emerald-300 hover:bg-emerald-100/50" : "bg-red-50/40 hover:bg-red-100/50") 
-                    : "hover:bg-slate-100"
+                    ? (isProfit ? "bg-emerald-50/100 hover:bg-emerald-100" : "bg-red-50/100 hover:bg-red-100") 
+                    : (!isCurrentMonth ? "bg-slate-50/50 text-slate-300" : "bg-white")
                 }
               `}
             >
