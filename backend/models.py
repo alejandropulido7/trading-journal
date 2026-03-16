@@ -30,6 +30,8 @@ class Account(Base):
     
     # Estado
     active = Column(Boolean, default=True)
+
+    start_date = Column(String, default="2024-01-01")
     
     trades = relationship("Trade", back_populates="account")
 
@@ -67,12 +69,15 @@ class Trade(Base):
     comment = Column(String, nullable=True)
     
     # Journaling
-    strategy = Column(String, nullable=True)
-    emotion = Column(String, nullable=True)
-    mistake = Column(String, nullable=True)
+    emotion_id = Column(Integer, ForeignKey("emotions.id"), nullable=True)
+    mistake_id = Column(Integer, ForeignKey("mistakes.id"), nullable=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
     notes = Column(String, nullable=True)
     
     account = relationship("Account", back_populates="trades")
+    emotion = relationship("Emotion", back_populates="trades")
+    mistake = relationship("Mistake", back_populates="trades")
+    strategy = relationship("Strategy", back_populates="trades")
 
     __table_args__ = (
         UniqueConstraint('ticket', 'account_id', name='unique_trade_per_account'),
@@ -85,3 +90,37 @@ class Server(Base):
     name = Column(String, unique=True, index=True) # Ej: FundedNext-Server
     alias = Column(String) # Ej: FundedNext (Nombre bonito para mostrar)
     active = Column(Boolean, default=True)
+
+
+class Emotion(Base):
+    __tablename__ = "emotions"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True)
+    
+    trades = relationship("Trade", back_populates="emotion")
+
+class Mistake(Base):
+    __tablename__ = "mistakes"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True)
+    
+    trades = relationship("Trade", back_populates="mistake")
+
+class Strategy(Base):
+    __tablename__ = "strategies"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True)
+    description = Column(String, nullable=True)
+    
+    # Relación 1 a Muchos con StrategyItem
+    items = relationship("StrategyItem", back_populates="strategy", cascade="all, delete-orphan")
+    trades = relationship("Trade", back_populates="strategy")
+
+class StrategyItem(Base):
+    __tablename__ = "strategy_items"
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id", ondelete="CASCADE"))
+    condition = Column(String) # Ej: "RSI < 30" o "Rechazo de EMA 200"
+    weight_percent = Column(Float) # Ej: 25.0
+    
+    strategy = relationship("Strategy", back_populates="items")

@@ -34,6 +34,7 @@ export interface AccountCreate {
     daily_drawdown_limit: string; // string para inputs, luego parsear a float
     max_drawdown_limit: string;
     consistency_rule: string;
+    start_date: string;
 }
 
 export interface Server {

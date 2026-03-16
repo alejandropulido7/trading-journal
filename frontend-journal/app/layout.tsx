@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 // 1. IMPORTAR ICONOS
-import { LayoutDashboard, CalendarDays, Settings, LineChart, HardDrive, Banknote } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Settings, LineChart, HardDrive, Banknote, Target } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +40,10 @@ export default function RootLayout({
               <CalendarDays size={20} />
               Historial Diario
             </Link>
+            <Link href="/strategies" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-sm font-medium text-slate-300 hover:text-white">
+                <Target size={20} />
+                Estrategias
+              </Link>
 
             <div className="pt-4 mt-4 border-t border-slate-800">
               <span className="text-xs text-slate-500 uppercase px-4 mb-2 block">Sistema</span>

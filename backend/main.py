@@ -14,11 +14,40 @@ from sqlalchemy import extract
 from security import security
 from routers import servers
 import statistics
+from contextlib import asynccontextmanager
 
 # Crear tablas al iniciar
 models.Base.metadata.create_all(bind=database.engine)
 
-app = FastAPI()
+# 1. Función para inyectar datos iniciales (Seeding)
+def seed_initial_data(db: Session):
+    # Emociones por defecto
+    default_emotions = ["Neutral", "Confident", "FOMO", "Fear", "Greed", "Revenge", "Frustrated", "Impatient"]
+    if db.query(models.Emotion).count() == 0:
+        for e in default_emotions:
+            db.add(models.Emotion(name=e))
+            
+    # Errores por defecto
+    default_mistakes = ["None", "Moved Stop Loss", "Early Exit", "Late Entry", "Overleveraged", "Ignored Plan", "Forced Trade"]
+    if db.query(models.Mistake).count() == 0:
+        for m in default_mistakes:
+            db.add(models.Mistake(name=m))
+            
+    db.commit()
+
+# 2. Modificamos la creación de la app para que ejecute el seeding al iniciar
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Esto se ejecuta al arrancar
+    db = database.SessionLocal()
+    try:
+        seed_initial_data(db)
+    finally:
+        db.close()
+    yield
+    # Lógica de apagado (si la hay)
+
+app = FastAPI(lifespan=lifespan)
 
 app.include_router(servers.router)
 
@@ -84,6 +113,7 @@ def create_account(account: schemas.AccountCreate, db: Session = Depends(databas
         daily_drawdown_limit = account.daily_drawdown_limit,  # % (Ej: 5.0)
         max_drawdown_limit = account.max_drawdown_limit,    # % (Ej: 10.0)
         consistency_rule = account.consistency_rule,
+        start_date=account.start_date,
         
         # Por defecto la cuenta nace activa
         active=True 
@@ -149,9 +179,9 @@ def sync_all_accounts(db: Session = Depends(database.get_db)):
         # Si hay fecha, usamos esa. Si es cuenta nueva, usamos fecha antigua.
         # Le damos un margen de 1 minuto atrás para evitar perder trades por segundos
         if last_trade_date:
-            sync_date_str = last_trade_date.strftime("%Y-%m-%d 00:00:00")
+            sync_date_str = (last_trade_date - timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
         else:
-            sync_date_str = "2020-01-01 00:00:00"
+            sync_date_str = f"{acc.start_date} 00:00:00"
 
         real_password = security.decrypt(acc.password)
 
@@ -166,6 +196,8 @@ def sync_all_accounts(db: Session = Depends(database.get_db)):
     payload = {
         "accounts": accounts_payload
     }
+
+    print(payload)
 
     # 3. LLAMAR A LA VPS
     try:
@@ -270,6 +302,23 @@ def get_trades_by_date(
         
     return result
 
+@app.patch("/trades/{trade_id}", response_model=schemas.TradeResponse)
+def update_trade(trade_id: int, trade_data: schemas.TradeUpdate, db: Session = Depends(database.get_db)):
+    db_trade = db.query(models.Trade).filter(models.Trade.id == trade_id).first()
+    
+    if not db_trade:
+        raise HTTPException(status_code=404, detail="Trade no encontrado")
+    
+    # Actualizar solo los campos que vengan en la petición
+    if trade_data.emotion is not None:
+        db_trade.emotion = trade_data.emotion
+    if trade_data.mistake is not None:
+        db_trade.mistake = trade_data.mistake
+        
+    db.commit()
+    db.refresh(db_trade)
+    return db_trade
+
 @app.get("/dashboard-stats", response_model=schemas.DashboardStats)
 def get_dashboard_stats(
     account_id: Optional[int] = None, 
@@ -346,7 +395,7 @@ def get_dashboard_stats(
     else:
         # Si no hay trades, mostramos una línea plana hoy
         balance_curve.append({
-            "date": datetime.now().strftime("%Y-%m-%d"),
+            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
             "balance": round(global_initial_balance, 2)
         })
 
@@ -607,3 +656,68 @@ def get_calendar_stats(
         "total_trades": total_count,
         "days": days_list
     }
+
+# --- ENDPOINTS BÁSICOS PARA LEER DATOS ---
+@app.get("/emotions/")
+def get_emotions(db: Session = Depends(database.get_db)):
+    return db.query(models.Emotion).all()
+
+@app.get("/mistakes/")
+def get_mistakes(db: Session = Depends(database.get_db)):
+    return db.query(models.Mistake).all()
+
+@app.get("/strategies/")
+def get_strategies(db: Session = Depends(database.get_db)):
+    return db.query(models.Strategy).all()
+
+# --- ENDPOINT PARA CREAR ESTRATEGIA (Lógica Compleja) ---
+class StrategyItemCreate(BaseModel):
+    condition: str
+    weight_percent: float
+
+class StrategyCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    items: List[StrategyItemCreate]
+
+@app.post("/strategies/")
+def create_strategy(strategy: StrategyCreate, db: Session = Depends(database.get_db)):
+    # 1. Crear la estrategia base
+    db_strategy = models.Strategy(name=strategy.name, description=strategy.description)
+    db.add(db_strategy)
+    db.commit()
+    db.refresh(db_strategy)
+    
+    # 2. Agregar los items dinámicos
+    for item in strategy.items:
+        db_item = models.StrategyItem(
+            strategy_id=db_strategy.id,
+            condition=item.condition,
+            weight_percent=item.weight_percent
+        )
+        db.add(db_item)
+        
+    db.commit()
+    return db_strategy
+
+# --- ENDPOINT PARA ACTUALIZAR EL TRADE ---
+class TradeAnalysisUpdate(BaseModel):
+    emotion_id: Optional[int] = None
+    mistake_id: Optional[int] = None
+    strategy_id: Optional[int] = None
+
+@app.patch("/trades/{trade_id}")
+def update_trade_analysis(trade_id: int, analysis: TradeAnalysisUpdate, db: Session = Depends(database.get_db)):
+    db_trade = db.query(models.Trade).filter(models.Trade.id == trade_id).first()
+    
+    if not db_trade:
+        raise HTTPException(status_code=404, detail="Trade no encontrado")
+
+    # Al asignar directamente, si analysis.emotion_id es None, 
+    # se guardará como NULL en la base de datos.
+    db_trade.emotion_id = analysis.emotion_id
+    db_trade.mistake_id = analysis.mistake_id
+    db_trade.strategy_id = analysis.strategy_id
+    
+    db.commit()
+    return {"message": "Trade actualizado"}

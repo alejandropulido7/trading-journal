@@ -21,14 +21,49 @@ class TradeBase(BaseModel):
     mistake: Optional[str] = None
     notes: Optional[str] = None
 
+# 1. Asegúrate de tener schemas básicos para leer las relaciones
+class EmotionResponse(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class MistakeResponse(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class StrategyResponse(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
 class TradeResponse(TradeBase):
     id: int
     account_id: int
+
+    emotion_id: Optional[int] = None
+    mistake_id: Optional[int] = None
+    strategy_id: Optional[int] = None
+
+    # Hacer opcionales los objetos completos (¡Esto es lo que suele fallar!)
+    emotion: Optional[EmotionResponse] = None
+    mistake: Optional[MistakeResponse] = None
+    strategy: Optional[StrategyResponse] = None
     
     # Campo extra para mostrar el nombre de la cuenta en las Cards del Frontend
     account_alias: Optional[str] = None 
     
     model_config = ConfigDict(from_attributes=True)
+
+class TradeUpdate(BaseModel):
+    emotion: Optional[str] = None
+    mistake: Optional[str] = None
+    notes: Optional[str] = None
+
+class TradeAnalysisUpdate(BaseModel):
+    emotion_id: Optional[int] = None
+    mistake_id: Optional[int] = None
+    strategy_id: Optional[int] = None
 
 # --- CUENTAS ---
 
@@ -47,6 +82,7 @@ class AccountCreate(BaseModel):
     daily_drawdown_limit: float
     max_drawdown_limit: float
     consistency_rule: float
+    start_date: str
 
 class AccountResponse(BaseModel):
     id: int
@@ -67,6 +103,7 @@ class AccountResponse(BaseModel):
     daily_drawdown_limit: float
     max_drawdown_limit: float
     consistency_rule: float
+    start_date: Optional[str] = None
     
     # Estos campos NO están en la tabla SQL, pero Pydantic los leerá
     # de las funciones @property de models.Account

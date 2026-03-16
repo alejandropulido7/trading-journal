@@ -1,5 +1,6 @@
 import { Dispatch, SetStateAction, FormEvent } from 'react';
 import { AccountCreate, Server } from '../types';
+import { Info } from 'lucide-react';
 
 interface CreateModalProps {
   isOpen: boolean;
@@ -25,74 +26,94 @@ export default function CreateModal({ isOpen, onClose, onSubmit, newAcc, setNewA
         <form onSubmit={onSubmit}>
           {/* SECCIÓN 1: CREDENCIALES */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="border-slate-300 col-1 md:col-1">          
-            <div className="col-span-1 md:col-span-1">
-              <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 bg-blue-50 p-2 rounded inline-block">Credenciales MT5</h3>
-            </div>
+            <div className="border-slate-300 col-1 md:col-1">          
+              <div className="col-span-1 md:col-span-1">
+                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 bg-blue-50 p-2 rounded inline-block">Credenciales MT5</h3>
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Login ID</label>
-              <input type="number" placeholder="Ej: 819203" className="p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" required
-                value={newAcc.login_id} onChange={e => setNewAcc({...newAcc, login_id: e.target.value})} />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Login ID</label>
+                <input type="number" placeholder="Ej: 819203" className="p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" required
+                  value={newAcc.login_id} onChange={e => setNewAcc({...newAcc, login_id: e.target.value})} />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Password</label>
-              <input type="password" placeholder="••••••••" className="p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required
-                value={newAcc.password} onChange={e => setNewAcc({...newAcc, password: e.target.value})} />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Password</label>
+                <input type="password" placeholder="••••••••" className="p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required
+                  value={newAcc.password} onChange={e => setNewAcc({...newAcc, password: e.target.value})} />
+              </div>
 
-            <div className="flex flex-col gap-1 col-span-1 md:col-span-2">
-              <label className="text-xs text-gray-500 font-medium">Server</label>
-              <select 
-                  className="p-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={newAcc.server} 
-                  onChange={e => setNewAcc({...newAcc, server: e.target.value})}
-                  required
-              >
-                  <option value="" disabled>Selecciona un servidor</option>
-                  {servers.map(srv => <option key={srv.name} value={srv.name}>{srv.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* SECCIÓN 2: REGLAS DE RIESGO (NUEVO) */}
-          <div className="border-slate-300 col-span-1 md:col-2">
-            <div className="col-span-1 md:col-span-1">
-                <h3 className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-3 bg-rose-50 p-2 rounded inline-block">Reglas de Riesgo (Prop Firm)</h3>
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Max Drawdown (%)</label>
-                <input type="number" step="0.1" placeholder="Ej: 10" className="p-2.5 border border-gray-200 rounded-lg outline-none"
-                value={newAcc.max_drawdown_limit} onChange={e => setNewAcc({...newAcc, max_drawdown_limit: e.target.value})} />
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Daily Drawdown (%)</label>
-                <input type="number" step="0.1" placeholder="Ej: 5" className="p-2.5 border border-gray-200 rounded-lg outline-none"
-                value={newAcc.daily_drawdown_limit} onChange={e => setNewAcc({...newAcc, daily_drawdown_limit: e.target.value})} />
-            </div>
-
-            <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Regla Consistencia (%)</label>
-                <input type="number" step="1" placeholder="0 si no aplica" className="p-2.5 border border-gray-200 rounded-lg outline-none"
-                value={newAcc.consistency_rule} onChange={e => setNewAcc({...newAcc, consistency_rule: e.target.value})} />
-            </div>
-
-            <div className="flex items-center gap-2 mt-6">
-                <input 
-                    type="checkbox" 
-                    id="trailing"
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                    checked={newAcc.trailing_drawdown}
-                    onChange={e => setNewAcc({...newAcc, trailing_drawdown: e.target.checked})}
-                />
-                <label htmlFor="trailing" className="text-sm text-gray-600 font-medium cursor-pointer">
-                    Activar Trailing Drawdown
+              <div className="flex flex-col gap-1 col-span-1 md:col-span-2">
+                <label className="text-xs text-gray-500 font-medium">Server</label>
+                <select 
+                    className="p-2.5 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={newAcc.server} 
+                    onChange={e => setNewAcc({...newAcc, server: e.target.value})}
+                    required
+                >
+                    <option value="" disabled>Selecciona un servidor</option>
+                    {servers.map(srv => <option key={srv.name} value={srv.name}>{srv.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                  Fecha de Inicio
+                  <div className="relative group cursor-help">
+                      <Info size={14} className="text-blue-500" />
+                      {/* Tooltip personalizado (Toast) que aparece al hacer hover */}
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-48 p-2 bg-slate-800 text-white text-[10px] rounded shadow-lg text-center z-50">
+                        A partir de esta fecha exacta se empezarán a recolectar los trades de esta cuenta.
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                      </div>
+                  </div>
                 </label>
+                <input 
+                    type="date" 
+                    className="p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                    required
+                    value={newAcc.start_date} 
+                    onChange={e => setNewAcc({...newAcc, start_date: e.target.value})} 
+                />
+              </div>
             </div>
-          </div>
+
+            {/* SECCIÓN 2: REGLAS DE RIESGO (NUEVO) */}
+            <div className="border-slate-300 col-span-1 md:col-2">
+              <div className="col-span-1 md:col-span-1">
+                  <h3 className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-3 bg-rose-50 p-2 rounded inline-block">Reglas de Riesgo (Prop Firm)</h3>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Max Drawdown (%)</label>
+                  <input type="number" step="0.1" placeholder="Ej: 10" className="p-2.5 border border-gray-200 rounded-lg outline-none"
+                  value={newAcc.max_drawdown_limit} onChange={e => setNewAcc({...newAcc, max_drawdown_limit: e.target.value})} />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Daily Drawdown (%)</label>
+                  <input type="number" step="0.1" placeholder="Ej: 5" className="p-2.5 border border-gray-200 rounded-lg outline-none"
+                  value={newAcc.daily_drawdown_limit} onChange={e => setNewAcc({...newAcc, daily_drawdown_limit: e.target.value})} />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500 font-medium">Regla Consistencia (%)</label>
+                  <input type="number" step="1" placeholder="0 si no aplica" className="p-2.5 border border-gray-200 rounded-lg outline-none"
+                  value={newAcc.consistency_rule} onChange={e => setNewAcc({...newAcc, consistency_rule: e.target.value})} />
+              </div>
+
+              <div className="flex items-center gap-2 mt-6">
+                  <input 
+                      type="checkbox" 
+                      id="trailing"
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      checked={newAcc.trailing_drawdown}
+                      onChange={e => setNewAcc({...newAcc, trailing_drawdown: e.target.checked})}
+                  />
+                  <label htmlFor="trailing" className="text-sm text-gray-600 font-medium cursor-pointer">
+                      Activar Trailing Drawdown
+                  </label>
+              </div>
+            </div>
           </div>
 
           {/* SECCIÓN 3: DATOS DEL JOURNAL */}

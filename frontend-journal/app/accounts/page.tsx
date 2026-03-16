@@ -13,16 +13,6 @@ import GridCards from './components/GridCards';
 import CreateModal from './components/CreateModal';
 import EditModal from './components/EditModal';
 
-// Servidores soportados (Hardcoded por ahora)
-const SUPPORTED_SERVERS = [
-  "FundedNext-Server",
-  "FundedNext-Demo",
-  "MetaQuotes-Demo",
-  "FTMO-Server",
-  "FundingPips-Server",
-  "SureLeverageFunding-Server"
-];
-
 export default function AccountsPage() {
   // --- ESTADOS ---
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -36,9 +26,21 @@ export default function AccountsPage() {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   const [newAcc, setNewAcc] = useState<AccountCreate>({
-    login_id: '', password: '', server: '', alias: '', prop_firm: '',
-    account_type: 'Phase 1', initial_balance: '', risk_per_trade: '1.0', target_percent: '8.0', investment: '',
-    trailing_drawdown: false, daily_drawdown_limit: '', max_drawdown_limit: '', consistency_rule: ''
+    login_id: '', 
+    password: '', 
+    server: '', 
+    alias: '', 
+    prop_firm: '',
+    account_type: 'Phase 1', 
+    initial_balance: '', 
+    risk_per_trade: '1.0', 
+    target_percent: '8.0', 
+    investment: '',
+    trailing_drawdown: false, 
+    daily_drawdown_limit: '', 
+    max_drawdown_limit: '', 
+    consistency_rule: '',
+    start_date: new Date().toISOString().split('T')[0]
   });
 
   const API_URL = 'http://localhost:8000';
@@ -105,7 +107,7 @@ export default function AccountsPage() {
     try {
       await axios.post(`${API_URL}/accounts/`, newAcc);
       setNewAcc({ login_id: '', password: '', server: '', alias: '', prop_firm: '', account_type: 'Phase 1', initial_balance: '', risk_per_trade: '1.0', target_percent: '8.0', investment: '' ,
-        trailing_drawdown: false, daily_drawdown_limit: '6.0', max_drawdown_limit: '3.0', consistency_rule: '25.0'
+        trailing_drawdown: false, daily_drawdown_limit: '6.0', max_drawdown_limit: '3.0', consistency_rule: '25.0', start_date: new Date().toISOString().split('T')[0]
       });
       setIsModalOpen(false);
       fetchAccounts();
