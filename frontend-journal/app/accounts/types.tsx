@@ -17,6 +17,7 @@ export interface Account {
     // Estos pueden venir del backend o ser calculados
     total_pl?: number;
     current_percent?: number;
+    loss_reason?: string | null;
 }
 
 export interface AccountCreate {

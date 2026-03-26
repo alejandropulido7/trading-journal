@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
@@ -15,6 +15,9 @@ from security import security
 from routers import servers
 import statistics
 from contextlib import asynccontextmanager
+import shutil
+import uuid
+from fastapi.staticfiles import StaticFiles
 
 # Crear tablas al iniciar
 models.Base.metadata.create_all(bind=database.engine)
@@ -63,6 +66,8 @@ app.add_middleware(
     allow_methods=["*"],         # Permitir todos los métodos (GET, POST, etc)
     allow_headers=["*"],         # Permitir todos los headers
 )
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # --- CONFIGURACIÓN VPS ---
 VPS_URL = os.getenv("VPS_MT5_URL")
@@ -148,11 +153,16 @@ def update_account(account_id: int, account_update: schemas.AccountUpdate, db: S
     if not db_account:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
     
-    # Actualizamos solo los campos que vienen en el payload
-    if account_update.alias is not None:
-        db_account.alias = account_update.alias
+    # Actualizar estado activo/inactivo
     if account_update.active is not None:
         db_account.active = account_update.active
+        # Si se está reactivando la cuenta, limpiamos la razón de pérdida
+        if account_update.active is True:
+            db_account.loss_reason = None
+            
+    # Guardar la razón de pérdida si viene en la petición
+    if account_update.loss_reason is not None:
+        db_account.loss_reason = account_update.loss_reason
         
     db.commit()
     db.refresh(db_account)
@@ -718,6 +728,115 @@ def update_trade_analysis(trade_id: int, analysis: TradeAnalysisUpdate, db: Sess
     db_trade.emotion_id = analysis.emotion_id
     db_trade.mistake_id = analysis.mistake_id
     db_trade.strategy_id = analysis.strategy_id
+    db_trade.trade_idea_id = analysis.trade_idea_id
     
     db.commit()
     return {"message": "Trade actualizado"}
+
+# --- ENDPOINTS DE TRADE IDEAS ---
+IDEAS_UPLOAD_DIR = "uploads/ideas"
+os.makedirs(IDEAS_UPLOAD_DIR, exist_ok=True)
+
+@app.get("/trade-ideas/", response_model=List[schemas.TradeIdeaResponse])
+def get_trade_ideas(
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, le=100),
+    db: Session = Depends(database.get_db)
+):
+    query = db.query(models.TradeIdea)
+    
+    if start_date:
+        query = query.filter(models.TradeIdea.created_at >= start_date)
+    if end_date:
+        # Añadimos 23:59:59 para incluir todo el día final
+        query = query.filter(models.TradeIdea.created_at <= f"{end_date} 23:59:59")
+        
+    return query.order_by(models.TradeIdea.created_at.desc()).offset(skip).limit(limit).all()
+
+# 2. ENDPOINT PARA CAMBIAR ESTADO
+class StatusUpdate(BaseModel):
+    status: str # "DRAFT", "EXECUTED", "DISCARDED"
+
+@app.patch("/trade-ideas/{idea_id}/status")
+def update_idea_status(idea_id: int, status_update: StatusUpdate, db: Session = Depends(database.get_db)):
+    idea = db.query(models.TradeIdea).filter(models.TradeIdea.id == idea_id).first()
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea no encontrada")
+    idea.status = status_update.status
+    db.commit()
+    return {"message": "Estado actualizado", "status": idea.status}
+
+# 3. ENDPOINT PARA ELIMINAR
+@app.delete("/trade-ideas/{idea_id}")
+def delete_trade_idea(idea_id: int, db: Session = Depends(database.get_db)):
+    idea = db.query(models.TradeIdea).filter(models.TradeIdea.id == idea_id).first()
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea no encontrada")
+    db.delete(idea)
+    db.commit()
+    return {"message": "Idea eliminada"}
+
+@app.post("/trade-ideas/", response_model=schemas.TradeIdeaResponse)
+def create_trade_idea(idea_data: schemas.TradeIdeaCreate, db: Session = Depends(database.get_db)):
+    # 1. Crear la Idea Principal
+    db_idea = models.TradeIdea(
+        asset=idea_data.asset,
+        strategy_id=idea_data.strategy_id,
+        status="DRAFT"
+    )
+    db.add(db_idea)
+    db.commit()
+    db.refresh(db_idea) # Obtenemos el ID generado
+    
+    # 2. Guardar el Checklist dinámico asociado a esta idea
+    for item in idea_data.checklist:
+        db_item = models.TradeIdeaItem(
+            trade_idea_id=db_idea.id,
+            strategy_item_id=item.strategy_item_id,
+            is_active=item.is_active,
+            direction=item.direction if item.is_active else None
+        )
+        db.add(db_item)
+        
+    db.commit()
+    db.refresh(db_idea)
+    
+    return db_idea
+
+@app.post("/trade-ideas/{idea_id}/evidences/", response_model=schemas.TimeframeEvidenceResponse)
+async def upload_idea_evidence(
+    idea_id: int, 
+    timeframe: str = Form(...), 
+    note: str = Form(""), # La nota es opcional, por defecto vacía
+    file: UploadFile = File(...), 
+    db: Session = Depends(database.get_db)
+):
+    # Verificar que la idea existe
+    idea = db.query(models.TradeIdea).filter(models.TradeIdea.id == idea_id).first()
+    if not idea:
+        raise HTTPException(status_code=404, detail="Trade Idea no encontrada")
+
+    # Generar un nombre único para la foto
+    # Ej: idea_5_15M_a8b3.png
+    file_ext = file.filename.split(".")[-1]
+    safe_filename = f"idea_{idea_id}_{timeframe}_{uuid.uuid4().hex[:6]}.{file_ext}"
+    file_path = os.path.join(IDEAS_UPLOAD_DIR, safe_filename)
+
+    # Guardar archivo físico en el disco de la VPS
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Guardar el registro en la Base de Datos
+    new_evidence = models.TimeframeEvidence(
+        trade_idea_id=idea_id,
+        timeframe=timeframe,
+        note=note,
+        image_url=f"/uploads/ideas/{safe_filename}" # Ruta relativa para el frontend
+    )
+    db.add(new_evidence)
+    db.commit()
+    db.refresh(new_evidence)
+
+    return new_evidence

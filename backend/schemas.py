@@ -37,6 +37,45 @@ class StrategyResponse(BaseModel):
     name: str
     model_config = ConfigDict(from_attributes=True)
 
+# --- SCHEMAS PARA TRADE IDEAS ---
+
+class TradeIdeaItemBase(BaseModel):
+    strategy_item_id: int
+    is_active: bool
+    direction: Optional[str] = None
+
+class TradeIdeaCreate(BaseModel):
+    asset: str
+    strategy_id: int
+    checklist: List[TradeIdeaItemBase]
+
+class TimeframeEvidenceResponse(BaseModel):
+    id: int
+    timeframe: str
+    note: str
+    image_url: str
+    model_config = ConfigDict(from_attributes=True)
+
+class TradeIdeaItemResponse(BaseModel):
+    id: int
+    strategy_item_id: int
+    is_active: bool
+    direction: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class TradeIdeaResponse(BaseModel):
+    id: int
+    asset: str
+    created_at: datetime
+    status: str
+    strategy_id: int
+    
+    # Anidamos el checklist y las fotos en la respuesta
+    checklist: List[TradeIdeaItemResponse] = []
+    evidences: List[TimeframeEvidenceResponse] = []
+    
+    model_config = ConfigDict(from_attributes=True)
+
 class TradeResponse(TradeBase):
     id: int
     account_id: int
@@ -52,6 +91,8 @@ class TradeResponse(TradeBase):
     
     # Campo extra para mostrar el nombre de la cuenta en las Cards del Frontend
     account_alias: Optional[str] = None 
+    trade_idea_id: Optional[int] = None
+    trade_idea: Optional[TradeIdeaResponse] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,6 +105,7 @@ class TradeAnalysisUpdate(BaseModel):
     emotion_id: Optional[int] = None
     mistake_id: Optional[int] = None
     strategy_id: Optional[int] = None
+    trade_idea_id: Optional[int] = None
 
 # --- CUENTAS ---
 
@@ -104,6 +146,7 @@ class AccountResponse(BaseModel):
     max_drawdown_limit: float
     consistency_rule: float
     start_date: Optional[str] = None
+    loss_reason: Optional[str] = None
     
     # Estos campos NO están en la tabla SQL, pero Pydantic los leerá
     # de las funciones @property de models.Account
@@ -187,3 +230,5 @@ class DashboardStats(BaseModel):
 class AccountUpdate(BaseModel):
     alias: Optional[str] = None
     active: Optional[bool] = None
+    loss_reason: Optional[str] = None
+

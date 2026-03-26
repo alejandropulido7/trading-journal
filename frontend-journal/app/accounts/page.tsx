@@ -80,12 +80,25 @@ export default function AccountsPage() {
   };
 
   // 3. Guardar Edición
-  const handleUpdate = async (id: number, alias: string, active: boolean) => {
+  const handleUpdate = async (id: number, alias: string, active: boolean, lossReason: string | null) => {
       try {
-          await axios.patch(`${API_URL}/accounts/${id}`, { alias, active });
-          setIsEditOpen(false);
-          fetchAccounts();
-      } catch (error) { alert("Error actualizando cuenta"); }
+      // 1. Enviar la actualización al backend
+      await axios.patch(`${API_URL}/accounts/${id}`, { 
+          alias: alias,
+          active: active,
+          loss_reason: lossReason // <-- Enviamos el nuevo dato
+      });
+      
+      // 2. Actualizar el estado local para que se vea reflejado inmediatamente
+      setAccounts(accounts.map(acc => 
+        acc.id === id ? { ...acc, alias, active, loss_reason: lossReason } : acc
+      ));
+      
+      setEditingAccount(null); // Cerrar el modal
+    } catch (error) {
+      console.error("Error al actualizar la cuenta:", error);
+      alert("Hubo un error al actualizar la cuenta.");
+    }
   }
 
   const handleSync = async () => {

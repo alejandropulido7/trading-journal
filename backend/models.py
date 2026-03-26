@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, BigInteger, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
+import datetime
 
 class Account(Base):
     __tablename__ = "accounts"
@@ -32,6 +33,7 @@ class Account(Base):
     active = Column(Boolean, default=True)
 
     start_date = Column(String, default="2024-01-01")
+    loss_reason = Column(String, nullable=True)
     
     trades = relationship("Trade", back_populates="account")
 
@@ -73,11 +75,13 @@ class Trade(Base):
     mistake_id = Column(Integer, ForeignKey("mistakes.id"), nullable=True)
     strategy_id = Column(Integer, ForeignKey("strategies.id"), nullable=True)
     notes = Column(String, nullable=True)
+    trade_idea_id = Column(Integer, ForeignKey("trade_ideas.id"), nullable=True)
     
     account = relationship("Account", back_populates="trades")
     emotion = relationship("Emotion", back_populates="trades")
     mistake = relationship("Mistake", back_populates="trades")
     strategy = relationship("Strategy", back_populates="trades")
+    trade_idea = relationship("TradeIdea", back_populates="trades")
 
     __table_args__ = (
         UniqueConstraint('ticket', 'account_id', name='unique_trade_per_account'),
@@ -124,3 +128,45 @@ class StrategyItem(Base):
     weight_percent = Column(Float) # Ej: 25.0
     
     strategy = relationship("Strategy", back_populates="items")
+
+class TradeIdea(Base):
+    __tablename__ = "trade_ideas"
+    id = Column(Integer, primary_key=True, index=True)
+    asset = Column(String) # Ej: "EURUSD"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"))
+    status = Column(String, default="DRAFT") # Puede ser DRAFT, EXECUTED, DISCARDED
+    
+    # Relaciones
+    strategy = relationship("Strategy")
+    # Relación con el checklist guardado
+    checklist = relationship("TradeIdeaItem", back_populates="trade_idea", cascade="all, delete-orphan")
+    # Relación con las fotos
+    evidences = relationship("TimeframeEvidence", back_populates="trade_idea", cascade="all, delete-orphan")
+    # Una idea puede resultar en uno o varios trades (ej. si haces re-entradas)
+    trades = relationship("Trade", back_populates="trade_idea")
+
+class TradeIdeaItem(Base):
+    """Guarda si el usuario marcó el checkbox y qué dirección eligió para una condición específica"""
+    __tablename__ = "trade_idea_items"
+    id = Column(Integer, primary_key=True, index=True)
+    trade_idea_id = Column(Integer, ForeignKey("trade_ideas.id", ondelete="CASCADE"))
+    strategy_item_id = Column(Integer, ForeignKey("strategy_items.id"))
+    
+    is_active = Column(Boolean, default=False)
+    direction = Column(String, nullable=True) # "BUY" o "SELL"
+
+    strategy_item = relationship("StrategyItem")
+    trade_idea = relationship("TradeIdea", back_populates="checklist")
+
+class TimeframeEvidence(Base):
+    """Guarda las fotos y notas de cada temporalidad"""
+    __tablename__ = "timeframe_evidences"
+    id = Column(Integer, primary_key=True, index=True)
+    trade_idea_id = Column(Integer, ForeignKey("trade_ideas.id", ondelete="CASCADE"))
+    
+    timeframe = Column(String) # Ej: "15M", "1H"
+    note = Column(String)      # Nota del análisis
+    image_url = Column(String) # Ruta de la imagen en tu VPS (ej: /uploads/ideas/idea_5_15M.png)
+
+    trade_idea = relationship("TradeIdea", back_populates="evidences")
