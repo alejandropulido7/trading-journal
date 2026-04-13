@@ -152,6 +152,8 @@ class AccountResponse(BaseModel):
     # de las funciones @property de models.Account
     total_pl: float
     current_percent: float
+
+    outcome: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -231,4 +233,5 @@ class AccountUpdate(BaseModel):
     alias: Optional[str] = None
     active: Optional[bool] = None
     loss_reason: Optional[str] = None
+    outcome: Optional[str] = None
 

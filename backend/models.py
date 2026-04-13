@@ -34,6 +34,7 @@ class Account(Base):
 
     start_date = Column(String, default="2024-01-01")
     loss_reason = Column(String, nullable=True)
+    outcome = Column(String, nullable=True)
     
     trades = relationship("Trade", back_populates="account")
 

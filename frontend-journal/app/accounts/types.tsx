@@ -18,6 +18,7 @@ export interface Account {
     total_pl?: number;
     current_percent?: number;
     loss_reason?: string | null;
+    outcome?: string | null;
 }
 
 export interface AccountCreate {

@@ -148,21 +148,23 @@ def delete_account(account_id: int, db: Session = Depends(database.get_db)):
     return {"message": "Cuenta eliminada correctamente"}
 
 @app.patch("/accounts/{account_id}", response_model=schemas.AccountResponse)
-def update_account(account_id: int, account_update: schemas.AccountUpdate, db: Session = Depends(database.get_db)):
+def update_account(account_id: int, account_data: schemas.AccountUpdate, db: Session = Depends(database.get_db)):
     db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
     if not db_account:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
     
-    # Actualizar estado activo/inactivo
-    if account_update.active is not None:
-        db_account.active = account_update.active
-        # Si se está reactivando la cuenta, limpiamos la razón de pérdida
-        if account_update.active is True:
+    if account_data.active is not None:
+        db_account.active = account_data.active
+        # Si se reactiva, limpiamos el historial de pérdida o victoria
+        if account_data.active is True:
             db_account.loss_reason = None
+            db_account.outcome = None
             
-    # Guardar la razón de pérdida si viene en la petición
-    if account_update.loss_reason is not None:
-        db_account.loss_reason = account_update.loss_reason
+    if account_data.loss_reason is not None:
+        db_account.loss_reason = account_data.loss_reason
+        
+    if account_data.outcome is not None:
+        db_account.outcome = account_data.outcome
         
     db.commit()
     db.refresh(db_account)

@@ -4,12 +4,11 @@ import { Account } from '../types';
 interface EditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Añadimos el nuevo parámetro lossReason a la función onSubmit
-  onSubmit: (id: number, alias: string, active: boolean, lossReason: string | null) => void;
+  // Actualizamos los parámetros que envía el onSubmit
+  onSubmit: (id: number, alias: string, active: boolean, lossReason: string | null, outcome: string | null) => void;
   account: Account | null;
 }
 
-// Sugerencias rápidas para mejor UX
 const COMMON_REASONS = [
   "Límite de pérdida diaria",
   "Drawdown máximo alcanzado",
@@ -21,29 +20,38 @@ const COMMON_REASONS = [
 export default function EditModal({ isOpen, onClose, onSubmit, account }: EditModalProps) {
   const [alias, setAlias] = useState("");
   const [active, setActive] = useState(true);
-  const [lossReason, setLossReason] = useState(""); // <-- Nuevo estado
+  const [lossReason, setLossReason] = useState("");
+  const [outcome, setOutcome] = useState<"PASSED" | "FAILED" | "">(""); // <-- NUEVO ESTADO
 
   useEffect(() => {
     if (account) {
         setAlias(account.alias);
         setActive(account.active);
-        // Cargamos el motivo de pérdida si ya existía (por si estamos editando una cuenta ya inactiva)
         setLossReason(account.loss_reason || ""); 
+        setOutcome((account.outcome as "PASSED" | "FAILED" | "") || "");
     }
   }, [account]);
 
   if (!isOpen || !account) return null;
 
   const handleSave = () => {
-      // Pequeña validación: Si la estamos marcando como inactiva, que tenga al menos un motivo
-      if (!active && !lossReason.trim()) {
-          alert("Por favor, especifica el motivo por el cual la cuenta se desactivará.");
-          return;
+      // Validaciones
+      if (!active) {
+          if (!outcome) {
+              alert("Debes seleccionar si la cuenta fue Aprobada o Perdida.");
+              return;
+          }
+          if (outcome === "FAILED" && !lossReason.trim()) {
+              alert("Por favor, especifica el motivo por el cual la cuenta se perdió.");
+              return;
+          }
       }
 
-      // Si se activa, enviamos null como motivo para limpiar la base de datos
-      const finalReason = active ? null : lossReason;
-      onSubmit(account.id, alias, active, finalReason);
+      // Si se activa, enviamos null para limpiar la base de datos
+      const finalReason = active ? null : (outcome === "FAILED" ? lossReason : null);
+      const finalOutcome = active ? null : outcome;
+      
+      onSubmit(account.id, alias, active, finalReason, finalOutcome);
   };
 
   return (
@@ -75,33 +83,59 @@ export default function EditModal({ isOpen, onClose, onSubmit, account }: EditMo
                 </label>
             </div>
             
-            {/* --- NUEVO BLOQUE DINÁMICO --- */}
-            {/* Solo se muestra si la casilla de "Cuenta Activa" NO está marcada */}
+            {/* --- BLOQUE DINÁMICO DE RESULTADO --- */}
             {!active && (
-              <div className="bg-rose-50 p-4 rounded-lg border border-rose-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label className="text-xs font-bold text-rose-700 uppercase tracking-wide">
-                    Motivo de la pérdida / Inactivación
+              <div className="p-4 rounded-lg border border-slate-200 animate-in fade-in duration-200 bg-slate-50">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-3">
+                    Resultado de la Evaluación
                   </label>
                   
-                  <textarea
-                    value={lossReason}
-                    onChange={(e) => setLossReason(e.target.value)}
-                    placeholder="Ej: Toqué el límite diario por operar en venganza..."
-                    className="w-full h-20 p-2 mt-2 border border-rose-200 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none text-sm"
-                  />
-
-                  {/* Botones de sugerencias rápidas */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {COMMON_REASONS.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        onClick={() => setLossReason(suggestion)}
-                        className="text-[10px] bg-white border border-rose-200 text-rose-600 px-2 py-1 rounded-full hover:bg-rose-100 transition"
+                  <div className="flex gap-2 mb-4">
+                      <button 
+                          onClick={() => setOutcome("PASSED")}
+                          className={`flex-1 py-2 text-sm font-bold rounded-md border transition ${outcome === "PASSED" ? "bg-emerald-100 border-emerald-500 text-emerald-700" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"}`}
                       >
-                        {suggestion}
+                          🏆 Aprobada
                       </button>
-                    ))}
+                      <button 
+                          onClick={() => setOutcome("FAILED")}
+                          className={`flex-1 py-2 text-sm font-bold rounded-md border transition ${outcome === "FAILED" ? "bg-rose-100 border-rose-500 text-rose-700" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"}`}
+                      >
+                          💥 Perdida
+                      </button>
                   </div>
+
+                  {/* Mostrar campo de texto SOLO si se perdió */}
+                  {outcome === "FAILED" && (
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                          <label className="text-xs font-bold text-rose-700 uppercase tracking-wide">
+                              Motivo de la pérdida
+                          </label>
+                          <textarea
+                              value={lossReason}
+                              onChange={(e) => setLossReason(e.target.value)}
+                              placeholder="Ej: Toqué el límite diario..."
+                              className="w-full h-20 p-2 mt-2 border border-rose-200 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none text-sm"
+                          />
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                              {COMMON_REASONS.map((suggestion) => (
+                                  <button
+                                      key={suggestion}
+                                      onClick={() => setLossReason(suggestion)}
+                                      className="text-[10px] bg-white border border-rose-200 text-rose-600 px-2 py-1 rounded-full hover:bg-rose-100 transition"
+                                  >
+                                      {suggestion}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+                  )}
+
+                  {outcome === "PASSED" && (
+                      <div className="text-sm text-emerald-600 bg-emerald-50 p-3 rounded border border-emerald-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                          ¡Felicidades! Esta cuenta quedará registrada en tus estadísticas como un Challenge superado con éxito.
+                      </div>
+                  )}
               </div>
             )}
             
@@ -114,8 +148,8 @@ export default function EditModal({ isOpen, onClose, onSubmit, account }: EditMo
                     Cancelar
                 </button>
                 <button 
-                    onClick={handleSave} // Usamos nuestra nueva función handleSave
-                    className={`flex-1 py-2 text-white rounded-lg font-medium transition ${active ? 'bg-blue-600 hover:bg-blue-700' : 'bg-rose-600 hover:bg-rose-700'}`}
+                    onClick={handleSave}
+                    className={`flex-1 py-2 text-white rounded-lg font-medium transition ${active ? 'bg-blue-600 hover:bg-blue-700' : (outcome === 'PASSED' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700')}`}
                 >
                     Guardar Cambios
                 </button>
