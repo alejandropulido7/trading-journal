@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from typing import List, Optional
 import models, database, schemas
@@ -680,7 +680,10 @@ def get_mistakes(db: Session = Depends(database.get_db)):
 
 @app.get("/strategies/")
 def get_strategies(db: Session = Depends(database.get_db)):
-    return db.query(models.Strategy).all()
+    strategies = db.query(models.Strategy)\
+                   .options(selectinload(models.Strategy.items))\
+                   .all()
+    return strategies
 
 # --- ENDPOINT PARA CREAR ESTRATEGIA (Lógica Compleja) ---
 class StrategyItemCreate(BaseModel):

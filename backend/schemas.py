@@ -32,9 +32,17 @@ class MistakeResponse(BaseModel):
     name: str
     model_config = ConfigDict(from_attributes=True)
 
+class StrategyItemResponse(BaseModel):
+    id: int
+    condition: str
+    weight_percent: float
+    model_config = ConfigDict(from_attributes=True)
+
 class StrategyResponse(BaseModel):
     id: int
     name: str
+    description: Optional[str] = None
+    items: List[StrategyItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 # --- SCHEMAS PARA TRADE IDEAS ---
