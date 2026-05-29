@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from typing import List, Optional
+from models.account.account_model import Account
 import models_core, schemas_core, config.postgres_database as postgres_database
 from pydantic import BaseModel
 import requests
@@ -66,7 +67,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Permitir estos orígenes
+    allow_origins=["*"],       # Permitir todos los orígenes para pruebas locales
     allow_credentials=True,
     allow_methods=["*"],         # Permitir todos los métodos (GET, POST, etc)
     allow_headers=["*"],         # Permitir todos los headers
@@ -77,23 +78,6 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # --- CONFIGURACIÓN VPS ---
 VPS_URL = os.getenv("VPS_MT5_URL")
 VPS_KEY = os.getenv("VPS_API_KEY")
-
-# --- SCHEMAS (Pydantic) ---
-# class AccountCreate(BaseModel):
-#     login_id: int
-#     password: str
-#     server: str
-#     alias: str
-#     prop_firm: str
-
-# class AccountResponse(AccountCreate):
-#     id: int
-#     balance: float
-#     last_sync: datetime.datetime = None # Calculado
-#     class Config:
-#         orm_mode = True
-
-# --- ENDPOINTS ---
 
 # --- MANEJADORES GLOBALES DE EXCEPCIONES ---
 
@@ -118,7 +102,7 @@ async def business_logic_exception_handler(request: Request, exc: BusinessLogicE
 @app.post("/sync-all")
 def sync_all_accounts(db: Session = Depends(postgres_database.get_db)):
     # 1. Obtener todas las cuentas activas locales
-    local_accounts = db.query(models_core.Account).filter(models_core.Account.active == True).all()
+    local_accounts = db.query(Account).filter(Account.active == True).all()
     
     if not local_accounts:
         return {"message": "No hay cuentas activas para sincronizar"}
@@ -240,7 +224,7 @@ def get_trades_by_date(
     trade_date: Optional[date] = None, 
     db: Session = Depends(postgres_database.get_db)
 ):
-    query = db.query(models_core.Trade).join(models_core.Account)
+    query = db.query(models_core.Trade).join(Account)
     
     if trade_date:
         # Filtramos por close_time (convertimos a fecha)
@@ -281,9 +265,9 @@ def get_dashboard_stats(
     db: Session = Depends(postgres_database.get_db)
 ):
     # 1. Obtener cuentas activas (o la seleccionada)
-    query_accounts = db.query(models_core.Account).filter(models_core.Account.active == True)
+    query_accounts = db.query(Account).filter(Account.active == True)
     if account_id:
-        query_accounts = query_accounts.filter(models_core.Account.id == account_id)
+        query_accounts = query_accounts.filter(Account.id == account_id)
     active_accounts = query_accounts.all()
     
     # Totales actuales
@@ -365,7 +349,7 @@ def get_dashboard_stats(
     if total_trades_count > 0:
         win_rate = (winning_trades_count / total_trades_count) * 100
 
-    recent_trades_db = query_trades.join(models_core.Account).order_by(desc(models_core.Trade.close_time)).limit(5).all()
+    recent_trades_db = query_trades.join(Account).order_by(desc(models_core.Trade.close_time)).limit(5).all()
     
     recent_trades_mapped = []
     for t in recent_trades_db:
