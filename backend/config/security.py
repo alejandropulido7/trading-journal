@@ -1,4 +1,3 @@
-# backend/security.py
 from cryptography.fernet import Fernet
 import os
 

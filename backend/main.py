@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from typing import List, Optional
-import models, database, schemas
+from models.account.account_model import Account
+import models_core, schemas_core, config.postgres_database as postgres_database
 from pydantic import BaseModel
 import requests
 import os
@@ -11,30 +13,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import date, timedelta
 from sqlalchemy import func, desc
 from sqlalchemy import extract
-from security import security
-from routers import servers
+from config.security import security
+from controller import server_controller, account_controller
 import statistics
 from contextlib import asynccontextmanager
 import shutil
 import uuid
 from fastapi.staticfiles import StaticFiles
+from config.exceptions import NotFoundError, BusinessLogicError
 
 # Crear tablas al iniciar
-models.Base.metadata.create_all(bind=database.engine)
+models_core.Base.metadata.create_all(bind=postgres_database.engine)
 
 # 1. Función para inyectar datos iniciales (Seeding)
 def seed_initial_data(db: Session):
     # Emociones por defecto
     default_emotions = ["Neutral", "Confident", "FOMO", "Fear", "Greed", "Revenge", "Frustrated", "Impatient"]
-    if db.query(models.Emotion).count() == 0:
+    if db.query(models_core.Emotion).count() == 0:
         for e in default_emotions:
-            db.add(models.Emotion(name=e))
+            db.add(models_core.Emotion(name=e))
             
     # Errores por defecto
     default_mistakes = ["None", "Moved Stop Loss", "Early Exit", "Late Entry", "Overleveraged", "Ignored Plan", "Forced Trade"]
-    if db.query(models.Mistake).count() == 0:
+    if db.query(models_core.Mistake).count() == 0:
         for m in default_mistakes:
-            db.add(models.Mistake(name=m))
+            db.add(models_core.Mistake(name=m))
             
     db.commit()
 
@@ -42,7 +45,7 @@ def seed_initial_data(db: Session):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Esto se ejecuta al arrancar
-    db = database.SessionLocal()
+    db = postgres_database.SessionLocal()
     try:
         seed_initial_data(db)
     finally:
@@ -52,7 +55,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(servers.router)
+######## ROUTES #######
+
+app.include_router(server_controller.router)
+app.include_router(account_controller.router)
 
 origins = [
     "http://localhost:3000",
@@ -61,7 +67,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Permitir estos orígenes
+    allow_origins=["*"],       # Permitir todos los orígenes para pruebas locales
     allow_credentials=True,
     allow_methods=["*"],         # Permitir todos los métodos (GET, POST, etc)
     allow_headers=["*"],         # Permitir todos los headers
@@ -73,108 +79,30 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 VPS_URL = os.getenv("VPS_MT5_URL")
 VPS_KEY = os.getenv("VPS_API_KEY")
 
-# --- SCHEMAS (Pydantic) ---
-class AccountCreate(BaseModel):
-    login_id: int
-    password: str
-    server: str
-    alias: str
-    prop_firm: str
+# --- MANEJADORES GLOBALES DE EXCEPCIONES ---
 
-class AccountResponse(AccountCreate):
-    id: int
-    balance: float
-    last_sync: datetime.datetime = None # Calculado
-    class Config:
-        orm_mode = True
-
-# --- ENDPOINTS ---
-
-# 1. Registrar Cuenta
-@app.post("/accounts/", response_model=schemas.AccountResponse)
-def create_account(account: schemas.AccountCreate, db: Session = Depends(database.get_db)):
-    encrypted_password = security.encrypt(account.password)
-    print(account)
-    db_acc = models.Account(
-        # Datos de conexión
-        login_id=account.login_id,
-        password=encrypted_password,
-        server=account.server,
-        alias=account.alias,
-        prop_firm=account.prop_firm,
-        
-        # Datos Financieros y Configuración
-        account_type=account.account_type,
-        initial_balance=account.initial_balance,
-        
-        # IMPORTANTE: Al crear la cuenta, el balance actual es igual al inicial
-        balance=account.initial_balance, 
-        
-        risk_per_trade=account.risk_per_trade,
-        target_percent=account.target_percent,
-        investment=account.investment,
-
-        trailing_drawdown = account.trailing_drawdown, # ¿Es trailing o estático?
-        daily_drawdown_limit = account.daily_drawdown_limit,  # % (Ej: 5.0)
-        max_drawdown_limit = account.max_drawdown_limit,    # % (Ej: 10.0)
-        consistency_rule = account.consistency_rule,
-        start_date=account.start_date,
-        
-        # Por defecto la cuenta nace activa
-        active=True 
+@app.exception_handler(NotFoundError)
+async def not_found_exception_handler(request: Request, exc: NotFoundError):
+    # Traduce NotFoundError a un HTTP 404
+    return JSONResponse(
+        status_code=404,
+        content={"detail": exc.message, "error_type": "NOT_FOUND"},
     )
-    db.add(db_acc)
-    db.commit()
-    db.refresh(db_acc)
-    return db_acc
 
-# 2. Obtener Cuentas
-@app.get("/accounts/", response_model=List[schemas.AccountResponse])
-def get_accounts(db: Session = Depends(database.get_db)):
-    return db.query(models.Account).all()
+@app.exception_handler(BusinessLogicError)
+async def business_logic_exception_handler(request: Request, exc: BusinessLogicError):
+    # Traduce BusinessLogicError a un HTTP 400 (Bad Request)
+    return JSONResponse(
+        status_code=400,
+        content={"detail": exc.message, "error_type": "BUSINESS_RULE_VIOLATION"},
+    )
 
-# 2. Endpoint DELETE
-@app.delete("/accounts/{account_id}")
-def delete_account(account_id: int, db: Session = Depends(database.get_db)):
-    account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
-    
-    # Opcional: Borrar también los trades asociados
-    db.query(models.Trade).filter(models.Trade.account_id == account_id).delete()
-    
-    db.delete(account)
-    db.commit()
-    return {"message": "Cuenta eliminada correctamente"}
-
-@app.patch("/accounts/{account_id}", response_model=schemas.AccountResponse)
-def update_account(account_id: int, account_data: schemas.AccountUpdate, db: Session = Depends(database.get_db)):
-    db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not db_account:
-        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
-    
-    if account_data.active is not None:
-        db_account.active = account_data.active
-        # Si se reactiva, limpiamos el historial de pérdida o victoria
-        if account_data.active is True:
-            db_account.loss_reason = None
-            db_account.outcome = None
-            
-    if account_data.loss_reason is not None:
-        db_account.loss_reason = account_data.loss_reason
-        
-    if account_data.outcome is not None:
-        db_account.outcome = account_data.outcome
-        
-    db.commit()
-    db.refresh(db_account)
-    return db_account
 
 # 3. LÓGICA DE SINCRONIZACIÓN (El botón mágico)
 @app.post("/sync-all")
-def sync_all_accounts(db: Session = Depends(database.get_db)):
+def sync_all_accounts(db: Session = Depends(postgres_database.get_db)):
     # 1. Obtener todas las cuentas activas locales
-    local_accounts = db.query(models.Account).filter(models.Account.active == True).all()
+    local_accounts = db.query(Account).filter(Account.active == True).all()
     
     if not local_accounts:
         return {"message": "No hay cuentas activas para sincronizar"}
@@ -184,8 +112,8 @@ def sync_all_accounts(db: Session = Depends(database.get_db)):
     
     for acc in local_accounts:
         # Buscamos la fecha del último trade cerrado registrado en NUESTRA base de datos para ESTA cuenta
-        last_trade_date = db.query(func.max(models.Trade.close_time))\
-                            .filter(models.Trade.account_id == acc.id)\
+        last_trade_date = db.query(func.max(models_core.Trade.close_time))\
+                            .filter(models_core.Trade.account_id == acc.id)\
                             .scalar()
         
         # Si hay fecha, usamos esa. Si es cuenta nueva, usamos fecha antigua.
@@ -265,13 +193,13 @@ def sync_all_accounts(db: Session = Depends(database.get_db)):
                     pass
 
             # Evitar duplicados (Doble verificación)
-            existing = db.query(models.Trade).filter(
-                models.Trade.ticket == t["ticket"],
-                models.Trade.account_id == current_db_acc.id
+            existing = db.query(models_core.Trade).filter(
+                models_core.Trade.ticket == t["ticket"],
+                models_core.Trade.account_id == current_db_acc.id
             ).first()
 
             if not existing:
-                new_trade_db = models.Trade(
+                new_trade_db = models_core.Trade(
                     account_id=current_db_acc.id,
                     ticket=t["ticket"],
                     position_id=t.get("position_id"),
@@ -291,32 +219,32 @@ def sync_all_accounts(db: Session = Depends(database.get_db)):
     print(f"Trades nuevos: {len(new_trades_list)}")
     return {"status": "success", "new_trades_added": len(new_trades_list)}
 
-@app.get("/trades/", response_model=List[schemas.TradeResponse])
+@app.get("/trades/", response_model=List[schemas_core.TradeResponse])
 def get_trades_by_date(
     trade_date: Optional[date] = None, 
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(postgres_database.get_db)
 ):
-    query = db.query(models.Trade).join(models.Account)
+    query = db.query(models_core.Trade).join(Account)
     
     if trade_date:
         # Filtramos por close_time (convertimos a fecha)
-        # Nota: En Postgres cast(models.Trade.close_time, Date)
-        query = query.filter(func.date(models.Trade.close_time) == trade_date)
+        # Nota: En Postgres cast(models_core.Trade.close_time, Date)
+        query = query.filter(func.date(models_core.Trade.close_time) == trade_date)
     
     trades = query.all()
     
     # Inyectamos el alias de la cuenta manualmente en la respuesta
     result = []
     for t in trades:
-        t_resp = schemas.TradeResponse.model_validate(t)
+        t_resp = schemas_core.TradeResponse.model_validate(t)
         t_resp.account_alias = t.account.alias # Asignamos el nombre de la cuenta
         result.append(t_resp)
         
     return result
 
-@app.patch("/trades/{trade_id}", response_model=schemas.TradeResponse)
-def update_trade(trade_id: int, trade_data: schemas.TradeUpdate, db: Session = Depends(database.get_db)):
-    db_trade = db.query(models.Trade).filter(models.Trade.id == trade_id).first()
+@app.patch("/trades/{trade_id}", response_model=schemas_core.TradeResponse)
+def update_trade(trade_id: int, trade_data: schemas_core.TradeUpdate, db: Session = Depends(postgres_database.get_db)):
+    db_trade = db.query(models_core.Trade).filter(models_core.Trade.id == trade_id).first()
     
     if not db_trade:
         raise HTTPException(status_code=404, detail="Trade no encontrado")
@@ -331,15 +259,15 @@ def update_trade(trade_id: int, trade_data: schemas.TradeUpdate, db: Session = D
     db.refresh(db_trade)
     return db_trade
 
-@app.get("/dashboard-stats", response_model=schemas.DashboardStats)
+@app.get("/dashboard-stats", response_model=schemas_core.DashboardStats)
 def get_dashboard_stats(
     account_id: Optional[int] = None, 
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(postgres_database.get_db)
 ):
     # 1. Obtener cuentas activas (o la seleccionada)
-    query_accounts = db.query(models.Account).filter(models.Account.active == True)
+    query_accounts = db.query(Account).filter(Account.active == True)
     if account_id:
-        query_accounts = query_accounts.filter(models.Account.id == account_id)
+        query_accounts = query_accounts.filter(Account.id == account_id)
     active_accounts = query_accounts.all()
     
     # Totales actuales
@@ -348,20 +276,20 @@ def get_dashboard_stats(
     count_active = len(active_accounts)
     
     # 2. Win Rate y Trades
-    query_trades = db.query(models.Trade)
+    query_trades = db.query(models_core.Trade)
     if account_id:
-        query_trades = query_trades.filter(models.Trade.account_id == account_id)
+        query_trades = query_trades.filter(models_core.Trade.account_id == account_id)
     else:
         # Si es global, filtramos solo trades de cuentas activas para no ensuciar el gráfico con cuentas borradas
         active_ids = [acc.id for acc in active_accounts]
-        query_trades = query_trades.filter(models.Trade.account_id.in_(active_ids))
+        query_trades = query_trades.filter(models_core.Trade.account_id.in_(active_ids))
 
     # --- LÓGICA DE LA CURVA DE EQUIDAD ---
     # a. Obtenemos el Balance Inicial Total
     global_initial_balance = sum(acc.initial_balance for acc in active_accounts)
 
     # b. Traemos TODOS los trades ordenados por fecha (ascendente) para ir sumando
-    all_trades = query_trades.order_by(models.Trade.close_time).all()
+    all_trades = query_trades.order_by(models_core.Trade.close_time).all()
     profits = [t.profit for t in all_trades]
 
     # c. Agrupamos profit por día
@@ -415,17 +343,17 @@ def get_dashboard_stats(
 
     # (El resto del código de win_rate y recent_trades sigue igual...)
     total_trades_count = query_trades.count()
-    winning_trades_count = query_trades.filter(models.Trade.profit > 0).count()
+    winning_trades_count = query_trades.filter(models_core.Trade.profit > 0).count()
     
     win_rate = 0.0
     if total_trades_count > 0:
         win_rate = (winning_trades_count / total_trades_count) * 100
 
-    recent_trades_db = query_trades.join(models.Account).order_by(desc(models.Trade.close_time)).limit(5).all()
+    recent_trades_db = query_trades.join(Account).order_by(desc(models_core.Trade.close_time)).limit(5).all()
     
     recent_trades_mapped = []
     for t in recent_trades_db:
-        t_resp = schemas.TradeResponse.model_validate(t)
+        t_resp = schemas_core.TradeResponse.model_validate(t)
         t_resp.account_alias = t.account.alias 
         recent_trades_mapped.append(t_resp)
 
@@ -497,7 +425,7 @@ def get_dashboard_stats(
 
     for acc in active_accounts:
         # 1. Obtener trades de ESTA cuenta para calcular su High Water Mark
-        acc_trades = db.query(models.Trade).filter(models.Trade.account_id == acc.id).order_by(models.Trade.close_time).all()
+        acc_trades = db.query(models_core.Trade).filter(models_core.Trade.account_id == acc.id).order_by(models_core.Trade.close_time).all()
         
         # Calcular curva de balance para hallar el High Water Mark (Pico más alto)
         temp_balance = acc.initial_balance
@@ -600,22 +528,22 @@ def get_dashboard_stats(
         "risk_metrics": risk_metrics_list
     }
 
-@app.get("/calendar-stats", response_model=schemas.CalendarResponse)
+@app.get("/calendar-stats", response_model=schemas_core.CalendarResponse)
 def get_calendar_stats(
     year: int, 
     month: int, 
     account_id: Optional[int] = None, 
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(postgres_database.get_db)
 ):
     # 1. Consulta base: Trades cerrados en el año y mes solicitados
-    query = db.query(models.Trade).filter(
-        extract('year', models.Trade.close_time) == year,
-        extract('month', models.Trade.close_time) == month
+    query = db.query(models_core.Trade).filter(
+        extract('year', models_core.Trade.close_time) == year,
+        extract('month', models_core.Trade.close_time) == month
     )
     
     # 2. Filtro opcional por cuenta
     if account_id:
-        query = query.filter(models.Trade.account_id == account_id)
+        query = query.filter(models_core.Trade.account_id == account_id)
     
     trades = query.all()
     
@@ -649,7 +577,7 @@ def get_calendar_stats(
     # 4. Formatear respuesta
     days_list = []
     for date_key, data in daily_map.items():
-        days_list.append(schemas.DailyStat(
+        days_list.append(schemas_core.DailyStat(
             date=date_key,
             profit=round(data["profit"], 2),
             trades_count=data["count"],
@@ -671,17 +599,17 @@ def get_calendar_stats(
 
 # --- ENDPOINTS BÁSICOS PARA LEER DATOS ---
 @app.get("/emotions/")
-def get_emotions(db: Session = Depends(database.get_db)):
-    return db.query(models.Emotion).all()
+def get_emotions(db: Session = Depends(postgres_database.get_db)):
+    return db.query(models_core.Emotion).all()
 
 @app.get("/mistakes/")
-def get_mistakes(db: Session = Depends(database.get_db)):
-    return db.query(models.Mistake).all()
+def get_mistakes(db: Session = Depends(postgres_database.get_db)):
+    return db.query(models_core.Mistake).all()
 
 @app.get("/strategies/")
-def get_strategies(db: Session = Depends(database.get_db)):
-    strategies = db.query(models.Strategy)\
-                   .options(selectinload(models.Strategy.items))\
+def get_strategies(db: Session = Depends(postgres_database.get_db)):
+    strategies = db.query(models_core.Strategy)\
+                   .options(selectinload(models_core.Strategy.items))\
                    .all()
     return strategies
 
@@ -696,16 +624,16 @@ class StrategyCreate(BaseModel):
     items: List[StrategyItemCreate]
 
 @app.post("/strategies/")
-def create_strategy(strategy: StrategyCreate, db: Session = Depends(database.get_db)):
+def create_strategy(strategy: StrategyCreate, db: Session = Depends(postgres_database.get_db)):
     # 1. Crear la estrategia base
-    db_strategy = models.Strategy(name=strategy.name, description=strategy.description)
+    db_strategy = models_core.Strategy(name=strategy.name, description=strategy.description)
     db.add(db_strategy)
     db.commit()
     db.refresh(db_strategy)
     
     # 2. Agregar los items dinámicos
     for item in strategy.items:
-        db_item = models.StrategyItem(
+        db_item = models_core.StrategyItem(
             strategy_id=db_strategy.id,
             condition=item.condition,
             weight_percent=item.weight_percent
@@ -722,8 +650,8 @@ class TradeAnalysisUpdate(BaseModel):
     strategy_id: Optional[int] = None
 
 @app.patch("/trades/{trade_id}")
-def update_trade_analysis(trade_id: int, analysis: TradeAnalysisUpdate, db: Session = Depends(database.get_db)):
-    db_trade = db.query(models.Trade).filter(models.Trade.id == trade_id).first()
+def update_trade_analysis(trade_id: int, analysis: TradeAnalysisUpdate, db: Session = Depends(postgres_database.get_db)):
+    db_trade = db.query(models_core.Trade).filter(models_core.Trade.id == trade_id).first()
     
     if not db_trade:
         raise HTTPException(status_code=404, detail="Trade no encontrado")
@@ -742,31 +670,31 @@ def update_trade_analysis(trade_id: int, analysis: TradeAnalysisUpdate, db: Sess
 IDEAS_UPLOAD_DIR = "uploads/ideas"
 os.makedirs(IDEAS_UPLOAD_DIR, exist_ok=True)
 
-@app.get("/trade-ideas/", response_model=List[schemas.TradeIdeaResponse])
+@app.get("/trade-ideas/", response_model=List[schemas_core.TradeIdeaResponse])
 def get_trade_ideas(
     start_date: Optional[str] = None, 
     end_date: Optional[str] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, le=100),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(postgres_database.get_db)
 ):
-    query = db.query(models.TradeIdea)
+    query = db.query(models_core.TradeIdea)
     
     if start_date:
-        query = query.filter(models.TradeIdea.created_at >= start_date)
+        query = query.filter(models_core.TradeIdea.created_at >= start_date)
     if end_date:
         # Añadimos 23:59:59 para incluir todo el día final
-        query = query.filter(models.TradeIdea.created_at <= f"{end_date} 23:59:59")
+        query = query.filter(models_core.TradeIdea.created_at <= f"{end_date} 23:59:59")
         
-    return query.order_by(models.TradeIdea.created_at.desc()).offset(skip).limit(limit).all()
+    return query.order_by(models_core.TradeIdea.created_at.desc()).offset(skip).limit(limit).all()
 
 # 2. ENDPOINT PARA CAMBIAR ESTADO
 class StatusUpdate(BaseModel):
     status: str # "DRAFT", "EXECUTED", "DISCARDED"
 
 @app.patch("/trade-ideas/{idea_id}/status")
-def update_idea_status(idea_id: int, status_update: StatusUpdate, db: Session = Depends(database.get_db)):
-    idea = db.query(models.TradeIdea).filter(models.TradeIdea.id == idea_id).first()
+def update_idea_status(idea_id: int, status_update: StatusUpdate, db: Session = Depends(postgres_database.get_db)):
+    idea = db.query(models_core.TradeIdea).filter(models_core.TradeIdea.id == idea_id).first()
     if not idea:
         raise HTTPException(status_code=404, detail="Idea no encontrada")
     idea.status = status_update.status
@@ -775,18 +703,18 @@ def update_idea_status(idea_id: int, status_update: StatusUpdate, db: Session = 
 
 # 3. ENDPOINT PARA ELIMINAR
 @app.delete("/trade-ideas/{idea_id}")
-def delete_trade_idea(idea_id: int, db: Session = Depends(database.get_db)):
-    idea = db.query(models.TradeIdea).filter(models.TradeIdea.id == idea_id).first()
+def delete_trade_idea(idea_id: int, db: Session = Depends(postgres_database.get_db)):
+    idea = db.query(models_core.TradeIdea).filter(models_core.TradeIdea.id == idea_id).first()
     if not idea:
         raise HTTPException(status_code=404, detail="Idea no encontrada")
     db.delete(idea)
     db.commit()
     return {"message": "Idea eliminada"}
 
-@app.post("/trade-ideas/", response_model=schemas.TradeIdeaResponse)
-def create_trade_idea(idea_data: schemas.TradeIdeaCreate, db: Session = Depends(database.get_db)):
+@app.post("/trade-ideas/", response_model=schemas_core.TradeIdeaResponse)
+def create_trade_idea(idea_data: schemas_core.TradeIdeaCreate, db: Session = Depends(postgres_database.get_db)):
     # 1. Crear la Idea Principal
-    db_idea = models.TradeIdea(
+    db_idea = models_core.TradeIdea(
         asset=idea_data.asset,
         strategy_id=idea_data.strategy_id,
         status="DRAFT"
@@ -797,7 +725,7 @@ def create_trade_idea(idea_data: schemas.TradeIdeaCreate, db: Session = Depends(
     
     # 2. Guardar el Checklist dinámico asociado a esta idea
     for item in idea_data.checklist:
-        db_item = models.TradeIdeaItem(
+        db_item = models_core.TradeIdeaItem(
             trade_idea_id=db_idea.id,
             strategy_item_id=item.strategy_item_id,
             is_active=item.is_active,
@@ -810,16 +738,16 @@ def create_trade_idea(idea_data: schemas.TradeIdeaCreate, db: Session = Depends(
     
     return db_idea
 
-@app.post("/trade-ideas/{idea_id}/evidences/", response_model=schemas.TimeframeEvidenceResponse)
+@app.post("/trade-ideas/{idea_id}/evidences/", response_model=schemas_core.TimeframeEvidenceResponse)
 async def upload_idea_evidence(
     idea_id: int, 
     timeframe: str = Form(...), 
     note: str = Form(""), # La nota es opcional, por defecto vacía
     file: UploadFile = File(...), 
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(postgres_database.get_db)
 ):
     # Verificar que la idea existe
-    idea = db.query(models.TradeIdea).filter(models.TradeIdea.id == idea_id).first()
+    idea = db.query(models_core.TradeIdea).filter(models_core.TradeIdea.id == idea_id).first()
     if not idea:
         raise HTTPException(status_code=404, detail="Trade Idea no encontrada")
 
@@ -834,7 +762,7 @@ async def upload_idea_evidence(
         shutil.copyfileobj(file.file, buffer)
 
     # Guardar el registro en la Base de Datos
-    new_evidence = models.TimeframeEvidence(
+    new_evidence = models_core.TimeframeEvidence(
         trade_idea_id=idea_id,
         timeframe=timeframe,
         note=note,
