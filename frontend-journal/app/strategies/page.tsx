@@ -1,126 +1,129 @@
 "use client";
-import { useState } from 'react';
-import axios from 'axios';
-import { Plus, Trash2, Save, Target } from 'lucide-react';
 
-interface StrategyItem {
-  condition: string;
-  weight_percent: number;
-}
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Plus, Target, LayoutList, Trash2, Edit3 } from "lucide-react";
+import { Strategy } from "./types";
+import { Button } from "@/components/ui/button";
+import StrategyModal from "./components/StrategyModal"; // <-- NUEVO IMPORT
 
-export default function StrategyBuilder() {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  // Estado inicial dinámico: Comienza con un item vacío
-  const [items, setItems] = useState<StrategyItem[]>([{ condition: "", weight_percent: 0 }]);
+export default function StrategiesPage() {
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // --- NUEVO: Estado para saber qué estrategia estamos editando ---
+  const [strategyToEdit, setStrategyToEdit] = useState<Strategy | null>(null);
 
-  // --- LÓGICA DINÁMICA ---
-  const handleAddItem = () => {
-    setItems([...items, { condition: "", weight_percent: 0 }]);
-  };
+  const API_URL = "http://localhost:8000";
 
-  const handleRemoveItem = (index: number) => {
-    const newItems = items.filter((_, i) => i !== index);
-    setItems(newItems);
-  };
+  useEffect(() => {
+    fetchStrategies();
+  }, []);
 
-  const handleChangeItem = (index: number, field: keyof StrategyItem, value: string | number) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setItems(newItems);
-  };
-
-  // Calcular el total de probabilidad/importancia
-  const totalWeight = items.reduce((sum, item) => sum + (Number(item.weight_percent) || 0), 0);
-
-  const handleSave = async () => {
-    if (totalWeight !== 100) {
-        alert("La suma de los porcentajes debe ser exactamente 100%");
-        return;
-    }
+  const fetchStrategies = async () => {
+    setLoading(true);
     try {
-        await axios.post('http://localhost:8000/strategies/', { name, description, items });
-        alert("Estrategia guardada con éxito");
-        // Resetear formulario
-        setName(""); setDescription(""); setItems([{ condition: "", weight_percent: 0 }]);
+      const response = await axios.get<Strategy[]>(`${API_URL}/strategies/`);
+      setStrategies(response.data);
     } catch (error) {
-        alert("Error guardando estrategia");
+      console.error("Error cargando estrategias:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- NUEVO: Función para abrir el modal en modo Edición ---
+  const handleEdit = (strategy: Strategy) => {
+    setStrategyToEdit(strategy);
+    setIsModalOpen(true);
+  };
+
+  // --- NUEVO: Función para abrir el modal en modo Creación ---
+  const handleCreate = () => {
+    setStrategyToEdit(null);
+    setIsModalOpen(true);
+  };
+
+  // --- NUEVO: Función para Eliminar ---
+  const handleDelete = async (id: number) => {
+    if (!confirm("¿Estás seguro de eliminar esta estrategia? Todas las ideas de trade asociadas a ella también podrían verse afectadas.")) return;
+    
+    try {
+      await axios.delete(`${API_URL}/strategies/${id}`);
+      setStrategies(strategies.filter(s => s.id !== id));
+    } catch (error) {
+      console.error("Error eliminando:", error);
+      alert("Hubo un error al eliminar la estrategia.");
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-slate-200">
-      <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-          <Target className="text-blue-600" size={28} />
-          <h2 className="text-2xl font-bold text-slate-800">Constructor de Estrategia</h2>
-      </div>
-
-      {/* Info General */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div className="max-w-6xl mx-auto p-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Nombre de Estrategia</label>
-            <input type="text" className="w-full p-2 border rounded mt-1 outline-blue-500" placeholder="Ej: Breakout Asiático" value={name} onChange={e => setName(e.target.value)} />
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+            <Target className="text-blue-600" size={28} />
+            Estrategias
+          </h1>
+          <p className="text-slate-500 mt-1">Gestiona tus sistemas de trading y sus reglas de confluencia.</p>
         </div>
-        <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Descripción</label>
-            <input type="text" className="w-full p-2 border rounded mt-1 outline-blue-500" placeholder="Ej: Operar rupturas de consolidación" value={description} onChange={e => setDescription(e.target.value)} />
-        </div>
+        
+        {/* Cambiamos el onClick a handleCreate */}
+        <Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 shadow-sm">
+          <Plus size={18} className="mr-2" />
+          Nueva Estrategia
+        </Button>
       </div>
 
-      {/* Items Dinámicos */}
-      <h3 className="text-sm font-bold text-slate-700 mb-3">Condiciones (Confluencias)</h3>
-      
-      {items.map((item, index) => (
-        <div key={index} className="flex gap-3 items-start mb-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <div className="flex-1">
-                <input 
-                    type="text" 
-                    placeholder="Ej: RSI < 30 (Sobrevendido)" 
-                    className="w-full p-2 border rounded outline-blue-500"
-                    value={item.condition}
-                    onChange={(e) => handleChangeItem(index, 'condition', e.target.value)}
-                />
-            </div>
-            <div className="w-32 relative">
-                <input 
-                    type="number" 
-                    placeholder="25" 
-                    className="w-full p-2 border rounded outline-blue-500 pr-8 text-right font-mono"
-                    value={item.weight_percent || ''}
-                    onChange={(e) => handleChangeItem(index, 'weight_percent', parseFloat(e.target.value))}
-                />
-                <span className="absolute right-3 top-2.5 text-slate-400 font-bold">%</span>
-            </div>
-            {items.length > 1 && (
-                <button onClick={() => handleRemoveItem(index)} className="p-2.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded transition">
-                    <Trash2 size={18} />
-                </button>
-            )}
+      {loading ? (
+        <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
+      ) : strategies.length === 0 ? (
+        <div className="text-center py-20 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+          <Target className="mx-auto text-slate-300 mb-3" size={48} />
+          <h3 className="text-lg font-bold text-slate-700">No tienes estrategias</h3>
+          <Button variant="outline" onClick={handleCreate} className="mt-4">Crear mi primera estrategia</Button>
         </div>
-      ))}
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {strategies.map((strategy) => (
+            <div key={strategy.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col">
+              <div className="flex justify-between items-start mb-3">
+                <h3 className="font-bold text-lg text-slate-800 line-clamp-1">{strategy.name}</h3>
+                <div className="flex gap-1 text-slate-400">
+                  {/* --- NUEVO: Conectamos los botones de acción --- */}
+                  <button onClick={() => handleEdit(strategy)} className="p-1.5 hover:text-blue-600 hover:bg-blue-50 rounded transition" title="Editar">
+                    <Edit3 size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(strategy.id)} className="p-1.5 hover:text-rose-600 hover:bg-rose-50 rounded transition" title="Eliminar">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+              
+              <p className="text-sm text-slate-500 mb-4 line-clamp-2 flex-1">{strategy.description || "Sin descripción proporcionada."}</p>
 
-      {/* Agregar Fila */}
-      <button onClick={handleAddItem} className="flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 mt-2">
-          <Plus size={16} /> Agregar Condición
-      </button>
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm">
+                <div className="flex items-center text-slate-600 font-medium">
+                  <LayoutList size={16} className="mr-1.5 text-slate-400" />
+                  {strategy.items?.length || 0} Reglas
+                </div>
+                <span className="text-xs font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded">
+                  {strategy.items?.reduce((acc, item) => acc + item.weight_percent, 0) || 0}% Total
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Totalizador y Guardado */}
-      <div className="mt-8 pt-6 border-t border-slate-200 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-slate-500">Peso Total:</span>
-              <span className={`text-xl font-black ${totalWeight === 100 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {totalWeight}%
-              </span>
-              {totalWeight !== 100 && <span className="text-xs text-rose-500 ml-2">(Debe ser 100%)</span>}
-          </div>
-          <button 
-              onClick={handleSave} 
-              disabled={totalWeight !== 100 || !name}
-              className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-              <Save size={18} /> Guardar Estrategia
-          </button>
-      </div>
+      {/* Pasamos strategyToEdit al modal */}
+      <StrategyModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchStrategies}
+        strategyToEdit={strategyToEdit} 
+      />
     </div>
   );
 }

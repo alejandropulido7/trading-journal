@@ -29,12 +29,10 @@ class AccountService:
         return self.repo.update(account)
     
     def delete_account(self, account_id: int):
-        account = self.repo.get_by_id(account)
+        account = self.repo.get_by_id(account_id)
         return self.repo.delete(account, account_id)
 
-
-    def create_account(account: AccountCreate, repo: IAccountRepository ):
-        
+    def create_account(self, account: AccountCreate):
         encrypted_password = security.encrypt(account.password)
         create_account = Account(
             # Datos de conexión
@@ -63,4 +61,4 @@ class AccountService:
             
             active=True 
         )
-        return repo.create(create_account)
+        return self.repo.create(create_account)
