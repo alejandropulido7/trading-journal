@@ -37,7 +37,7 @@ class TradeService:
             last_trade_date = last_trade[-1].close_time if last_trade else None
             
             if last_trade_date:
-                sync_date_str = (last_trade_date - timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
+                sync_date_str = (last_trade_date + timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S")
             else:
                 sync_date_str = f"{acc.start_date} 00:00:00"
 
