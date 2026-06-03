@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from models_core import Strategy, StrategyItem
+from models import Strategy, StrategyItem
 from schemas.strategies.strategy_schema import StrategyCreate
 
 class StrategyService:

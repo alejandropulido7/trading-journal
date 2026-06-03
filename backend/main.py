@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-import models_core, config.postgres_database as postgres_database
+import models, config.postgres_database as postgres_database
 from fastapi.middleware.cors import CORSMiddleware
 from controller import server_controller, account_controller, trade_controller, strategy_controller, trade_idea_controller
 from contextlib import asynccontextmanager
@@ -9,21 +9,21 @@ from fastapi.staticfiles import StaticFiles
 from config.exceptions import NotFoundError, BusinessLogicError
 
 # Crear tablas al iniciar
-models_core.Base.metadata.create_all(bind=postgres_database.engine)
+postgres_database.Base.metadata.create_all(bind=postgres_database.engine)
 
 # 1. Función para inyectar datos iniciales (Seeding)
 def seed_initial_data(db: Session):
     # Emociones por defecto
     default_emotions = ["Neutral", "Confident", "FOMO", "Fear", "Greed", "Revenge", "Frustrated", "Impatient"]
-    if db.query(models_core.Emotion).count() == 0:
+    if db.query(models.Emotion).count() == 0:
         for e in default_emotions:
-            db.add(models_core.Emotion(name=e))
+            db.add(models.Emotion(name=e))
             
     # Errores por defecto
     default_mistakes = ["None", "Moved Stop Loss", "Early Exit", "Late Entry", "Overleveraged", "Ignored Plan", "Forced Trade"]
-    if db.query(models_core.Mistake).count() == 0:
+    if db.query(models.Mistake).count() == 0:
         for m in default_mistakes:
-            db.add(models_core.Mistake(name=m))
+            db.add(models.Mistake(name=m))
             
     db.commit()
 

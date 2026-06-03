@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from models_core import TradeIdea, TimeframeEvidence
+from models import TradeIdea, TimeframeEvidence
 
 class ITradeIdeaRepository(ABC):
     

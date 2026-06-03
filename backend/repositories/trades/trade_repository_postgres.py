@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func, extract
 from typing import List, Optional
 from datetime import date
-from models_core import Trade, Emotion, Mistake, Strategy
+from models import Trade, Emotion, Mistake, Strategy
 from models.account.account_model import Account
 from repositories.trades.i_trade_repository import ITradeRepository
 

@@ -3,7 +3,7 @@ from typing import List, Optional
 from config.exceptions import NotFoundError
 
 from models.account.account_model import Account
-from models_core import Trade
+from models import Trade
 from repositories.account.i_account_repository import IAccountRepository
 
 class PostgresAccountRepository(IAccountRepository):

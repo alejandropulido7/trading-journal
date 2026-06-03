@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from models_core import TradeIdea, TimeframeEvidence
+from models import TradeIdea, TimeframeEvidence
 from repositories.trade_ideas.i_trade_idea_repository import ITradeIdeaRepository
 
 class PostgresTradeIdeaRepository(ITradeIdeaRepository):

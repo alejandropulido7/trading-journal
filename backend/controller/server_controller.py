@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from config.postgres_database import get_db
 from schemas.servers.server_schema import ServerResponse, ServerCreate
-from models_core import Server
+from models import Server
 
 router = APIRouter(
     prefix="/servers",

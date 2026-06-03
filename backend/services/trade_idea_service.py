@@ -3,7 +3,7 @@ import uuid
 import shutil
 from typing import List, Optional
 from fastapi import HTTPException, UploadFile
-from models_core import TradeIdea, TradeIdeaItem, TimeframeEvidence
+from models import TradeIdea, TradeIdeaItem, TimeframeEvidence
 from schemas.trade_ideas.trade_idea_schema import TradeIdeaCreate, StatusUpdate
 from repositories.trade_ideas.i_trade_idea_repository import ITradeIdeaRepository
 

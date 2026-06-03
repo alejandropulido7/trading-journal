@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from datetime import date
-from models_core import Trade, Emotion, Mistake, Strategy
+from models import Trade, Emotion, Mistake, Strategy
 
 class ITradeRepository(ABC):
     

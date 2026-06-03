@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from repositories.retrieve_data_trades.i_retrieve_trades_repository import IMT5SyncRepository
-from models_core import Trade, Strategy, StrategyItem
+from models import Trade, Strategy, StrategyItem
 from models.account.account_model import Account
 from repositories.trades.i_trade_repository import ITradeRepository
 from repositories.account.i_account_repository import IAccountRepository
