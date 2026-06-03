@@ -48,6 +48,10 @@ class Trade(Base):
     strategy = relationship("Strategy", back_populates="trades")
     trade_idea = relationship("TradeIdea", back_populates="trades")
 
+    @property
+    def account_alias(self) -> str:
+        return self.account.alias if self.account else "Desconocida"
+
     __table_args__ = (
         UniqueConstraint('ticket', 'account_id', name='unique_trade_per_account'),
     )

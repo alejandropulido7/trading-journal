@@ -25,11 +25,12 @@ def sync_all_accounts(service: TradeService = Depends(get_trade_service)):
     return service.sync_all_accounts()
 
 @router.get("/trades/", response_model=List[TradeResponse])
-def get_trades(
-    trade_date: Optional[date] = None, 
+def get_trades_route(
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None,
     service: TradeService = Depends(get_trade_service)
 ):
-    return service.get_trades(trade_date)
+    return service.get_trades(start_date, end_date)
 
 @router.patch("/trades/{trade_id}")
 def update_trade_analysis(
@@ -62,7 +63,3 @@ def get_emotions(service: TradeService = Depends(get_trade_service)):
 @router.get("/mistakes/", response_model=List[MistakeResponse])
 def get_mistakes(service: TradeService = Depends(get_trade_service)):
     return service.trade_repo.get_mistakes()
-
-@router.get("/strategies/", response_model=List[StrategyResponse])
-def get_strategies(service: TradeService = Depends(get_trade_service)):
-    return service.trade_repo.get_strategies()

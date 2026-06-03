@@ -114,15 +114,10 @@ class TradeService:
                     pass
 
         return {"status": "success", "new_trades_added": total_new_trades}
-
-    def get_trades(self, trade_date: Optional[date] = None):
-        trades = self.trade_repo.get_all(trade_date)
-        result = []
-        for t in trades:
-            t_resp = TradeResponse.model_validate(t)
-            t_resp.account_alias = t.account.alias
-            result.append(t_resp)
-        return result
+    
+    def get_trades(self, start_date: Optional[str] = None, end_date: Optional[str] = None):
+        # Le pasamos las fechas al repositorio para que haga la consulta SQL
+        return self.trade_repo.get_all(start_date, end_date)
 
     def update_trade_analysis(self, trade_id: int, analysis: TradeAnalysisUpdate):
         db_trade = self.trade_repo.get_by_id(trade_id)

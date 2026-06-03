@@ -56,6 +56,8 @@ class TradeResponse(TradeBase):
     
     account_alias: Optional[str] = None 
     trade_idea_id: Optional[int] = None
+
+    account_alias: str = "N/A"
     
     model_config = ConfigDict(from_attributes=True)
 

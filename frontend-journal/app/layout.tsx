@@ -43,11 +43,11 @@ export default function RootLayout({
             </Link>
             <Link href="/trades" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-sm font-medium text-slate-300 hover:text-white">
               <CalendarDays size={20} />
-              Historial Diario
+              Trade history
             </Link>
             <Link href="/strategies" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition text-sm font-medium text-slate-300 hover:text-white">
               <Target size={20} />
-              Estrategias
+              Strategies
             </Link>
 
             <div className="pt-4 mt-4 border-t border-slate-800">

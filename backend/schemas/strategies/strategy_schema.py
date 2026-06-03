@@ -23,3 +23,12 @@ class StrategyResponse(BaseModel):
     description: Optional[str] = None
     items: List[StrategyItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+class StrategyItemUpdate(BaseModel):
+    condition: str
+    weight_percent: float
+
+class StrategyUpdate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    items: List[StrategyItemUpdate] # Recibimos el arreglo de reglas

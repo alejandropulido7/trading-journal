@@ -10,11 +10,17 @@ class TradeRepositoryPostgres(ITradeRepository):
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, trade_date: Optional[date] = None) -> List[Trade]:
-        query = self.db.query(Trade).join(Account)
-        if trade_date:
-            query = query.filter(func.date(Trade.close_time) == trade_date)
-        return query.all()
+    def get_all(self, start_date: Optional[str] = None, end_date: Optional[str] = None):
+        query = self.db.query(Trade)
+        
+        if start_date:
+            query = query.filter(Trade.open_time >= start_date)
+        if end_date:
+            # Le sumamos 23:59:59 al end_date para incluir todo el día final
+            query = query.filter(Trade.open_time <= f"{end_date} 23:59:59")
+            
+        # Ordenamos del más reciente al más antiguo
+        return query.order_by(Trade.open_time.desc()).all()
 
     def get_by_id(self, trade_id: int) -> Optional[Trade]:
         return self.db.query(Trade).filter(Trade.id == trade_id).first()
