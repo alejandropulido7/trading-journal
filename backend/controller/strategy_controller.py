@@ -3,7 +3,7 @@ from typing import List
 
 from schemas.strategies import strategy_schema
 from services.strategy_service import StrategyService
-from config.dependencies import get_strategy_service 
+from core.dependencies import get_strategy_service 
 
 router = APIRouter(prefix="/strategies", tags=["Strategies"])
 

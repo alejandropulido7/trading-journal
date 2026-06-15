@@ -2,15 +2,15 @@ from fastapi import HTTPException
 from schemas.account.account_schema import AccountUpdate, AccountCreate
 from repositories.account.i_account_repository import IAccountRepository
 from models.account.account_model import Account
-from config.security import security
+from core.security import security
 
 class AccountService:
 
     def __init__(self, repo: IAccountRepository):
         self.repo = repo
 
-    def get_accounts(self):
-        return self.repo.get_all()
+    def get_accounts(self, user_id: int):
+        return self.repo.get_all(user_id)
 
     def update_account_status(self, account_id: int, data: AccountUpdate):
         account = self.repo.get_by_id(account_id)        

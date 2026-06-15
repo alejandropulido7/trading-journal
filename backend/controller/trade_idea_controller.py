@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from config.postgres_database import get_db
+from core.postgres_database import get_db
 from services.trade_idea_service import TradeIdeaService
 from repositories.trade_ideas.trade_idea_repository_postgres import PostgresTradeIdeaRepository
 from schemas.trade_ideas.trade_idea_schema import (

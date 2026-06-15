@@ -1,13 +1,15 @@
 from cryptography.fernet import Fernet
 import os
 
+SECURITY_KEY_ACCOUNTS:str = os.getenv("SECURITY_KEY_ACCOUNTS")
+
 class SecurityManager:
     def __init__(self):
-        # En producción, esto debería venir de una variable de entorno
-        # Por ahora, generamos/cargamos una clave localmente
-        self.key_file = "secret.key"
-        self.key = self._load_or_generate_key()
-        self.cipher = Fernet(self.key)
+        #self.key_file = "secret.key"
+        #self.key = self._load_or_generate_key()
+        print("KEYYYY")
+        print(SECURITY_KEY_ACCOUNTS)
+        self.cipher = Fernet(SECURITY_KEY_ACCOUNTS)
 
     def _load_or_generate_key(self):
         if os.path.exists(self.key_file):

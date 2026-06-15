@@ -1,7 +1,7 @@
 from schemas.strategies.strategy_schema import StrategyCreate, StrategyUpdate
 from repositories.strategies.i_strategy_repository import IStrategyRepository
 from models.strategies.strategy_models import Strategy, StrategyItem
-from config.exceptions import NotFoundError, BusinessLogicError
+from core.exceptions import NotFoundError, BusinessLogicError
 
 class StrategyService:
     def __init__(self, repo: IStrategyRepository):

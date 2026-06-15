@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-import models, config.postgres_database as postgres_database
+import models, core.postgres_database as postgres_database
 from fastapi.middleware.cors import CORSMiddleware
-from controller import server_controller, account_controller, trade_controller, strategy_controller, trade_idea_controller
+from controller import server_controller, account_controller, trade_controller, strategy_controller, trade_idea_controller, auth_controller
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
-from config.exceptions import NotFoundError, BusinessLogicError
+from core.exceptions import NotFoundError, BusinessLogicError
 
 # Crear tablas al iniciar
 postgres_database.Base.metadata.create_all(bind=postgres_database.engine)
@@ -48,6 +48,7 @@ app.include_router(account_controller.router)
 app.include_router(trade_controller.router)
 app.include_router(strategy_controller.router)
 app.include_router(trade_idea_controller.router)
+app.include_router(auth_controller.router)
 
 app.add_middleware(
     CORSMiddleware,

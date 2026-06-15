@@ -5,7 +5,7 @@ from models.account.account_model import Account
 class IAccountRepository(ABC):
     
     @abstractmethod
-    def get_all(self) -> List[Account]:
+    def get_all(self, user_id: int) -> List[Account]:
         """Recupera todas las cuentas"""
         pass
         

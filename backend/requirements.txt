@@ -6,3 +6,6 @@ requests
 pydantic
 cryptography
 python-multipart
+passlib[bcrypt]
+PyJWT
+pydantic[email]
