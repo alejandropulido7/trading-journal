@@ -16,7 +16,7 @@ from schemas.trades.trade_schema import (
     TradeResponse, TradeAnalysisUpdate, DashboardStats, 
     ChartDataPoint, RiskMetrics, CalendarResponse, DailyStat
 )
-from config.security import security
+from core.security import security
 
 class TradeService:
     def __init__(self, trade_repo: ITradeRepository, 

@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
-from config.postgres_database import Base
+from core.postgres_database import Base
 
 class TradeIdea(Base):
     __tablename__ = "trade_ideas"

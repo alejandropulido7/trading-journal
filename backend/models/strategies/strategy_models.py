@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from config.postgres_database import Base
+from core.postgres_database import Base
 
 class Strategy(Base):
     __tablename__ = "strategies"

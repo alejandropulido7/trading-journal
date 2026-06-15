@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, BigInteger, UniqueConstraint
 from sqlalchemy.orm import relationship
-from config.postgres_database import Base
+from core.postgres_database import Base
 
 class Emotion(Base):
     __tablename__ = "emotions"

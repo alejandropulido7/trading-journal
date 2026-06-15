@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, BigInteger, Boolean
+from sqlalchemy import Column, Integer, String, Float, BigInteger, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
-from config.postgres_database import Base
+from core.postgres_database import Base
 
 class Account(Base):
     __tablename__ = "accounts"
@@ -34,8 +34,10 @@ class Account(Base):
     start_date = Column(String, default="2024-01-01")
     loss_reason = Column(String, nullable=True)
     outcome = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
     
     trades = relationship("Trade", back_populates="account")
+    owner = relationship("User", back_populates="accounts")
 
     # --- LÓGICA DE NEGOCIO (Calculados al vuelo) ---
     @property

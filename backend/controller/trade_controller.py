@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import date
 from sqlalchemy.orm import Session
 from repositories.retrieve_data_trades.mt5_sync_repository import MT5SyncRepository
-from config.postgres_database import get_db
+from core.postgres_database import get_db
 from repositories.trades.trade_repository_postgres import TradeRepositoryPostgres
 from repositories.account.account_repository_postgress import PostgresAccountRepository
 from services.trade_service import TradeService

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from config.postgres_database import get_db
+from core.postgres_database import get_db
 from schemas.servers.server_schema import ServerResponse, ServerCreate
 from models import Server
 

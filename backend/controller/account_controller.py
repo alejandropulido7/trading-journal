@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
-from config.postgres_database import get_db
+from core.postgres_database import get_db
 from schemas.account.account_schema import AccountCreate, AccountResponse, AccountUpdate
-from repositories.account.i_account_repository import IAccountRepository
-from repositories.account.account_repository_postgress import PostgresAccountRepository
 from services.account_service import AccountService
-from config.dependencies import get_account_service
+from core.dependencies import get_account_service
+from core.dependencies_auth import get_current_user
+from models.user.user_model import User
 
 router = APIRouter(
     prefix="/accounts",
@@ -16,11 +16,13 @@ router = APIRouter(
 
 class AccountController:
     # El controlador SOLO pide el Servicio. No sabe de dónde viene ni qué BD usa.
-    def __init__(self, service: AccountService = Depends(get_account_service)):
+    def __init__(self, service: AccountService = Depends(get_account_service),
+                 auth_user: User = Depends(get_current_user)):
         self.service = service
+        self.user = auth_user
 
     def get_accounts(self):
-        return self.service.get_accounts()
+        return self.service.get_accounts(user_id=self.user.id)
 
     def update_account(self, account_id: int, data: AccountUpdate):
         return self.service.update_account_status(account_id, data)

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean
-from config.postgres_database import Base
+from core.postgres_database import Base
 
 class Server(Base):
     __tablename__ = "servers"

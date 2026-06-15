@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from repositories.strategies.i_strategy_repository import IStrategyRepository
 from services.strategy_service import StrategyService
 from repositories.strategies.postgres_strategy_repository import PostgresStrategyRepository
-from config.postgres_database import get_db
+from core.postgres_database import get_db
 from repositories.account.i_account_repository import IAccountRepository
 from repositories.account.account_repository_postgress import PostgresAccountRepository
 from services.account_service import AccountService
