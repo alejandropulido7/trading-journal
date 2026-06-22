@@ -4,7 +4,7 @@ from models.strategies.strategy_models import Strategy
 
 class IStrategyRepository(ABC):
     @abstractmethod
-    def get_all(self) -> List[Strategy]: pass
+    def get_all(self, user_id: int) -> List[Strategy]: pass
     
     @abstractmethod
     def get_by_id(self, strategy_id: int) -> Optional[Strategy]: pass

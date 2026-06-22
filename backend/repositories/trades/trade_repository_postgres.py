@@ -10,8 +10,15 @@ class TradeRepositoryPostgres(ITradeRepository):
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, start_date: Optional[str] = None, end_date: Optional[str] = None):
-        query = self.db.query(Trade)
+    def get_all(self, start_date: Optional[str] = None, 
+                end_date: Optional[str] = None,
+                user_id: int = None):
+
+        query = (
+            self.db.query(Trade)
+            .join(Account, Trade.account_id == Account.id)
+            .filter(Account.user_id == user_id)
+        )
         
         if start_date:
             query = query.filter(Trade.open_time >= start_date)
@@ -45,19 +52,28 @@ class TradeRepositoryPostgres(ITradeRepository):
     def get_strategies(self) -> List[Strategy]:
         return self.db.query(Strategy).options(selectinload(Strategy.items)).all()
 
-    def get_trades_for_stats(self, account_id: Optional[int] = None) -> List[Trade]:
-        query = self.db.query(Trade)
+    def get_trades_for_stats(self, account_id: Optional[int] = None, user_id: int = None) -> List[Trade]:
+        query = (
+            self.db.query(Trade)
+            .join(Account, Trade.account_id == Account.id)
+            .filter(Account.user_id == user_id)
+        )
+        # query = self.db.query(Trade)
         if account_id:
+            # Si piden una cuenta en específico, filtramos por ese ID
             query = query.filter(Trade.account_id == account_id)
         else:
-            # Filtramos por cuentas activas si no hay account_id
-            active_accounts = self.db.query(Account.id).filter(Account.active == True).all()
-            active_ids = [acc.id for acc in active_accounts]
-            query = query.filter(Trade.account_id.in_(active_ids))
+            # Como ya hicimos el JOIN arriba, SQLAlchemy ya tiene cargada la tabla Account.
+            # Simplemente le decimos que descarte las cuentas inactivas.
+            query = query.filter(Account.active == True)
         return query.order_by(Trade.close_time).all()
 
-    def get_trades_by_month(self, year: int, month: int, account_id: Optional[int] = None) -> List[Trade]:
-        query = self.db.query(Trade).filter(
+    def get_trades_by_month(self, year: int, month: int, account_id: Optional[int] = None, user_id: int = None) -> List[Trade]:
+        query = (
+            self.db.query(Trade)
+            .join(Account, Trade.account_id == Account.id)
+            .filter(Account.user_id == user_id)
+        ).filter(
             extract('year', Trade.close_time) == year,
             extract('month', Trade.close_time) == month
         )

@@ -5,7 +5,7 @@ from models import TradeIdea, TimeframeEvidence
 class ITradeIdeaRepository(ABC):
     
     @abstractmethod
-    def get_all(self, start_date: Optional[str] = None, end_date: Optional[str] = None, skip: int = 0, limit: int = 10) -> List[TradeIdea]:
+    def get_all(self, start_date: Optional[str] = None, end_date: Optional[str] = None, skip: int = 0, limit: int = 10, user_id:int = None) -> List[TradeIdea]:
         pass
         
     @abstractmethod

@@ -15,7 +15,7 @@ class UserService:
             
         # 2. Encriptar y guardar
         hashed_pw = get_password_hash(user_data.password)
-        db_user = User(email=user_data.email, hashed_password=hashed_pw)
+        db_user = User(email=user_data.email, hashed_password=hashed_pw, name=user_data.name)
         self.db.add(db_user)
         self.db.commit()
         return db_user

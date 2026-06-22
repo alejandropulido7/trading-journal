@@ -7,8 +7,12 @@ class PostgresTradeIdeaRepository(ITradeIdeaRepository):
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, start_date: Optional[str] = None, end_date: Optional[str] = None, skip: int = 0, limit: int = 10) -> List[TradeIdea]:
-        query = self.db.query(TradeIdea)
+    def get_all(self, start_date: Optional[str] = None, 
+                end_date: Optional[str] = None, 
+                skip: int = 0, 
+                limit: int = 10,
+                user_id: int = None) -> List[TradeIdea]:
+        query = self.db.query(TradeIdea).filter(TradeIdea.user_id == user_id)
         if start_date:
             query = query.filter(TradeIdea.created_at >= start_date)
         if end_date:

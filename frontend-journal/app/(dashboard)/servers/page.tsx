@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Server, Trash2, Plus, HardDrive } from "lucide-react";
+import api from '@/app/lib/api'
 
 interface ServerData {
   id: number;
@@ -25,7 +26,7 @@ export default function ServersPage() {
 
   const fetchServers = async () => {
     try {
-      const res = await axios.get(`${API_URL}/servers/`);
+      const res = await api.get(`${API_URL}/servers/`);
       setServers(res.data);
     } catch (error) {
       console.error("Error fetching servers", error);
@@ -38,7 +39,7 @@ export default function ServersPage() {
 
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/servers/`, {
+      await api.post(`${API_URL}/servers/`, {
         name: newName,
         alias: newAlias
       });
@@ -54,7 +55,7 @@ export default function ServersPage() {
   const handleDelete = async (id: number) => {
     if (!confirm("¿Seguro que quieres eliminar este servidor?")) return;
     try {
-      await axios.delete(`${API_URL}/servers/${id}`);
+      await api.delete(`${API_URL}/servers/${id}`);
       fetchServers();
     } catch (error) {
       console.error(error);

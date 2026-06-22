@@ -4,7 +4,7 @@ import requests
 import statistics
 from datetime import date, timedelta
 from typing import List, Optional
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from repositories.retrieve_data_trades.i_retrieve_trades_repository import IMT5SyncRepository
@@ -17,23 +17,27 @@ from schemas.trades.trade_schema import (
     ChartDataPoint, RiskMetrics, CalendarResponse, DailyStat
 )
 from core.security import security
+from models.user.user_model import User
+from core.dependencies_auth import get_current_user
 
 class TradeService:
     def __init__(self, trade_repo: ITradeRepository, 
                  account_repo: IAccountRepository,
-                 retrieve_trades_repo: IMT5SyncRepository):
+                 retrieve_trades_repo: IMT5SyncRepository,
+                 current_user: User):
         self.trade_repo = trade_repo
         self.account_repo = account_repo
         self.retrieve_trades_repo = retrieve_trades_repo
+        self.current_user = current_user
 
     def sync_all_accounts(self):
-        local_accounts = [acc for acc in self.account_repo.get_all() if acc.active]
+        local_accounts = [acc for acc in self.account_repo.get_all(self.current_user.id) if acc.active]
         if not local_accounts:
             return {"message": "No hay cuentas activas para sincronizar"}
 
         accounts_payload = []
         for acc in local_accounts:
-            last_trade = self.trade_repo.get_trades_for_stats(acc.id)
+            last_trade = self.trade_repo.get_trades_for_stats(acc.id, self.current_user.id)
             last_trade_date = last_trade[-1].close_time if last_trade else None
             
             if last_trade_date:
@@ -117,7 +121,7 @@ class TradeService:
     
     def get_trades(self, start_date: Optional[str] = None, end_date: Optional[str] = None):
         # Le pasamos las fechas al repositorio para que haga la consulta SQL
-        return self.trade_repo.get_all(start_date, end_date)
+        return self.trade_repo.get_all(start_date, end_date, self.current_user.id)
 
     def update_trade_analysis(self, trade_id: int, analysis: TradeAnalysisUpdate):
         db_trade = self.trade_repo.get_by_id(trade_id)
@@ -135,12 +139,12 @@ class TradeService:
         if account_id:
             active_accounts = [self.account_repo.get_by_id(account_id)]
         else:
-            active_accounts = [acc for acc in self.account_repo.get_all() if acc.active]
+            active_accounts = [acc for acc in self.account_repo.get_all(self.current_user.id) if acc.active]
 
         total_balance = sum(acc.balance for acc in active_accounts)
         total_pl = sum(acc.balance - acc.initial_balance for acc in active_accounts)
         
-        all_trades = self.trade_repo.get_trades_for_stats(account_id)
+        all_trades = self.trade_repo.get_trades_for_stats(account_id, self.current_user.id)
         profits = [t.profit for t in all_trades]
 
         # Equidad
@@ -288,7 +292,7 @@ class TradeService:
         )
 
     def get_calendar_stats(self, year: int, month: int, account_id: Optional[int] = None):
-        trades = self.trade_repo.get_trades_by_month(year, month, account_id)
+        trades = self.trade_repo.get_trades_by_month(year, month, account_id, self.current_user.id)
         daily_map = {}
         total_profit = 0.0
         total_wins = 0

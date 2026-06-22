@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, AlertCircle } from "lucide-react";
 import { Strategy } from "../types";
+import api from '@/app/lib/api'
 
 interface StrategyModalProps {
   isOpen: boolean;
@@ -78,9 +79,9 @@ export default function StrategyModal({ isOpen, onClose, onSuccess, strategyToEd
 
       // --- NUEVO: Decidir si es POST (Crear) o PUT (Editar) ---
       if (strategyToEdit) {
-        await axios.put(`http://localhost:8000/strategies/${strategyToEdit.id}`, payload);
+        await api.put(`http://localhost:8000/strategies/${strategyToEdit.id}`, payload);
       } else {
-        await axios.post("http://localhost:8000/strategies/", payload);
+        await api.post("http://localhost:8000/strategies/", payload);
       }
       
       onSuccess();

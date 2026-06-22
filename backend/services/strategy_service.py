@@ -1,3 +1,4 @@
+from models.user.user_model import User
 from schemas.strategies.strategy_schema import StrategyCreate, StrategyUpdate
 from repositories.strategies.i_strategy_repository import IStrategyRepository
 from models.strategies.strategy_models import Strategy, StrategyItem
@@ -12,8 +13,8 @@ class StrategyService:
         if total_weight != 100:
             raise BusinessLogicError(f"El peso total de la estrategia debe ser 100%. Actual: {total_weight}%")
 
-    def get_all_strategies(self):
-        return self.repo.get_all()
+    def get_all_strategies(self, user_id: int):
+        return self.repo.get_all(user_id)
 
     def get_strategy_by_id(self, strategy_id: int):
         strategy = self.repo.get_by_id(strategy_id)
@@ -21,14 +22,15 @@ class StrategyService:
             raise NotFoundError(entity_name="Estrategia", entity_id=strategy_id)
         return strategy
 
-    def create_strategy(self, data: StrategyCreate):
+    def create_strategy(self, data: StrategyCreate, user_id: int):
         self._validate_weight(data.items)
         
         # Mapeo de DTO a Modelo
         new_strategy = Strategy(
             name=data.name,
             description=data.description,
-            items=[StrategyItem(condition=i.condition, weight_percent=i.weight_percent) for i in data.items]
+            items=[StrategyItem(condition=i.condition, weight_percent=i.weight_percent) for i in data.items],
+            user_id = user_id
         )
         return self.repo.create(new_strategy)
 

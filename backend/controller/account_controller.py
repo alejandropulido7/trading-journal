@@ -11,7 +11,8 @@ from models.user.user_model import User
 
 router = APIRouter(
     prefix="/accounts",
-    tags=["Accounts"]
+    tags=["Accounts"],
+    dependencies=[Depends(get_current_user)]
 )
 
 class AccountController:
@@ -28,7 +29,7 @@ class AccountController:
         return self.service.update_account_status(account_id, data)
     
     def create_account(self, data: AccountCreate):
-        return self.service.create_account(data)
+        return self.service.create_account(data, self.user.id)
     
     def delete_account(self, account_id: int,):
         return self.service.delete_account(account_id)

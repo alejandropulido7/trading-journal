@@ -5,7 +5,8 @@ import axios from "axios";
 import { Plus, Target, LayoutList, Trash2, Edit3 } from "lucide-react";
 import { Strategy } from "./types";
 import { Button } from "@/components/ui/button";
-import StrategyModal from "./components/StrategyModal"; // <-- NUEVO IMPORT
+import StrategyModal from "./components/StrategyModal";
+import api from '@/app/lib/api'
 
 export default function StrategiesPage() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
@@ -24,7 +25,7 @@ export default function StrategiesPage() {
   const fetchStrategies = async () => {
     setLoading(true);
     try {
-      const response = await axios.get<Strategy[]>(`${API_URL}/strategies/`);
+      const response = await api.get<Strategy[]>(`${API_URL}/strategies/`);
       setStrategies(response.data);
     } catch (error) {
       console.error("Error cargando estrategias:", error);
@@ -50,7 +51,7 @@ export default function StrategiesPage() {
     if (!confirm("¿Estás seguro de eliminar esta estrategia? Todas las ideas de trade asociadas a ella también podrían verse afectadas.")) return;
     
     try {
-      await axios.delete(`${API_URL}/strategies/${id}`);
+      await api.delete(`${API_URL}/strategies/${id}`);
       setStrategies(strategies.filter(s => s.id !== id));
     } catch (error) {
       console.error("Error eliminando:", error);

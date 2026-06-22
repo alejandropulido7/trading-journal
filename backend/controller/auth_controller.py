@@ -13,6 +13,7 @@ def get_user_service(db: Session = Depends(get_db)):
 
 @router.post("/register")
 def register(user_data: UserCreate, service: UserService = Depends(get_user_service)):
+    print(user_data)
     service.register_user(user_data)
     return {"message": "Usuario registrado con éxito"}
 

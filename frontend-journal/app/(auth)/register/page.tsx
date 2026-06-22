@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { Lock, Mail, TrendingUp } from "lucide-react";
+import { Lock, Mail, TrendingUp, User } from "lucide-react";
 import api from "@/app/lib/api"; // Importamos nuestra instancia configurada
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 export default function LoginPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,16 +29,22 @@ export default function LoginPage() {
       formData.append("username", email); // OAuth2 usa "username", le pasamos el email
       formData.append("password", password);
 
-      const response = await api.post("/auth/login", formData, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
+      const payload = {
+        name, email, password
+      };
+
+      console.log(payload);
+
+      const response = await api.post("/auth/register", payload);
+
+      console.log(response);
 
       // Guardamos el token en las cookies (expira en 7 días)
-      Cookies.set("token", response.data.access_token, { expires: 7 });
+      //Cookies.set("token", response.data.access_token, { expires: 7 });
       
       // Redirigimos al Dashboard
-      router.push("/");
-      router.refresh(); // Forzamos a Next.js a re-evaluar el Middleware
+      //router.push("/");
+      //router.refresh(); // Forzamos a Next.js a re-evaluar el Middleware
       
     } catch (err: any) {
       console.error(err);
@@ -47,7 +55,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 m-auto">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
         
         {/* Logo / Header */}
@@ -68,6 +76,22 @@ export default function LoginPage() {
 
         {/* Formulario */}
         <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                Nombre
+                </label>
+                <div className="relative">
+                <User className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <Input 
+                    type="text" 
+                    placeholder="Trader" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="pl-10 h-11 bg-slate-50"
+                    required
+                />
+                </div>
+          </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
               Correo Electrónico
@@ -107,13 +131,13 @@ export default function LoginPage() {
             className="w-full h-11 bg-blue-600 hover:bg-blue-700 font-bold text-md mt-2"
             disabled={loading}
           >
-            {loading ? "Verificando..." : "Iniciar Sesión"}
+            {loading ? "Verificando..." : "Registrarse"}
           </Button>
         </form>
 
         {/* Sección de Registro (opcional) */}
         <p className="text-center text-sm text-slate-500 mt-8">
-          ¿No tienes una cuenta? <a href="/register" className="text-blue-600 font-bold hover:underline">Regístrate aquí</a>
+          Ya tienes una cuenta? <a href="/login" className="text-blue-600 font-bold hover:underline">Inicia sesión aquí</a>
         </p>
       </div>
     </div>

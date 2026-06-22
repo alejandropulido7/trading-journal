@@ -1,18 +1,21 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from models.user.user_model import User
 from core.postgres_database import get_db
 from services.trade_idea_service import TradeIdeaService
 from repositories.trade_ideas.trade_idea_repository_postgres import PostgresTradeIdeaRepository
 from schemas.trade_ideas.trade_idea_schema import (
     TradeIdeaCreate, TradeIdeaResponse, StatusUpdate, TimeframeEvidenceResponse
 )
+from core.dependencies_auth import get_current_user
 
-router = APIRouter(tags=["Trade Ideas"])
+router = APIRouter(tags=["Trade Ideas"], dependencies=[Depends(get_current_user)])
 
-def get_trade_idea_service(db: Session = Depends(get_db)):
+def get_trade_idea_service(db: Session = Depends(get_db), 
+                           current_user: User = Depends(get_current_user)):
     repo = PostgresTradeIdeaRepository(db)
-    return TradeIdeaService(repo)
+    return TradeIdeaService(repo, current_user)
 
 @router.get("/trade-ideas/", response_model=List[TradeIdeaResponse])
 def get_trade_ideas(

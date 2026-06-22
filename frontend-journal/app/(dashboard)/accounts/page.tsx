@@ -12,6 +12,7 @@ import Header from './components/Header';
 import GridCards from './components/GridCards';
 import CreateModal from './components/CreateModal';
 import EditModal from './components/EditModal';
+import api from '@/app/lib/api'
 
 export default function AccountsPage() {
   // --- ESTADOS ---
@@ -48,7 +49,7 @@ export default function AccountsPage() {
   // --- LOGICA ---
   const fetchAccounts = async () => {
     try {
-      const res = await axios.get<Account[]>(`${API_URL}/accounts/`);
+      const res = await api.get<Account[]>(`${API_URL}/accounts/`);
       setAccounts(res.data);
     } catch (error) { console.error("Error fetching accounts", error); }
   };
@@ -58,7 +59,7 @@ export default function AccountsPage() {
       fetchAccounts();
 
       // CARGAR SERVIDORES DE LA DB
-      axios.get(`${API_URL}/servers/`).then(res => {
+      api.get(`${API_URL}/servers/`).then(res => {
           setAvailableServers(res.data);
       });
   }, []);
@@ -67,7 +68,7 @@ export default function AccountsPage() {
   const handleDelete = async (id: number) => {
     if(!confirm("¿Estás seguro de ELIMINAR esta cuenta? Se perderá todo el historial.")) return;
     try {
-        await axios.delete(`${API_URL}/accounts/${id}`);
+        await api.delete(`${API_URL}/accounts/${id}`);
         fetchAccounts(); // Recargar
     } catch (error) { alert("Error eliminando cuenta"); }
   };
@@ -82,7 +83,7 @@ export default function AccountsPage() {
   // 3. Guardar Edición
   const handleEditSubmit = async (id: number, alias: string, active: boolean, lossReason: string | null, outcome: string | null) => {
     try {
-      await axios.patch(`${API_URL}/accounts/${id}`, { 
+      await api.patch(`${API_URL}/accounts/${id}`, { 
           alias: alias,
           active: active,
           loss_reason: lossReason,
@@ -104,7 +105,7 @@ export default function AccountsPage() {
     setLoading(true);
     setSyncMsg('Contactando VPS...');
     try {
-      const res = await axios.post(`${API_URL}/sync-all`);
+      const res = await api.post(`${API_URL}/trades/sync-all`);
       setSyncMsg(`✅ Éxito: ${res.data.new_trades_added} trades nuevos.`);
       fetchAccounts();
     } catch (error) {
@@ -117,7 +118,7 @@ export default function AccountsPage() {
   const registerAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/accounts/`, newAcc);
+      await api.post(`${API_URL}/accounts/`, newAcc);
       setNewAcc({ login_id: '', password: '', server: '', alias: '', prop_firm: '', account_type: 'Phase 1', initial_balance: '', risk_per_trade: '1.0', target_percent: '8.0', investment: '' ,
         trailing_drawdown: false, daily_drawdown_limit: '6.0', max_drawdown_limit: '3.0', consistency_rule: '25.0', start_date: new Date().toISOString().split('T')[0]
       });

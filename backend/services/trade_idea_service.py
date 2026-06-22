@@ -3,18 +3,22 @@ import uuid
 import shutil
 from typing import List, Optional
 from fastapi import HTTPException, UploadFile
+from models.user.user_model import User
 from models import TradeIdea, TradeIdeaItem, TimeframeEvidence
 from schemas.trade_ideas.trade_idea_schema import TradeIdeaCreate, StatusUpdate
 from repositories.trade_ideas.i_trade_idea_repository import ITradeIdeaRepository
 
 class TradeIdeaService:
-    def __init__(self, repo: ITradeIdeaRepository):
+    def __init__(self, 
+                 repo: ITradeIdeaRepository,
+                 current_user: User):
         self.repo = repo
         self.upload_dir = "uploads/ideas"
+        self.current_user = current_user
         os.makedirs(self.upload_dir, exist_ok=True)
 
     def get_trade_ideas(self, start_date: Optional[str] = None, end_date: Optional[str] = None, skip: int = 0, limit: int = 10):
-        return self.repo.get_all(start_date, end_date, skip, limit)
+        return self.repo.get_all(start_date, end_date, skip, limit, self.current_user.id)
 
     def update_idea_status(self, idea_id: int, status_update: StatusUpdate):
         idea = self.repo.get_by_id(idea_id)
@@ -34,7 +38,8 @@ class TradeIdeaService:
         db_idea = TradeIdea(
             asset=idea_data.asset,
             strategy_id=idea_data.strategy_id,
-            status="DRAFT"
+            status="DRAFT",
+            user_id = self.current_user.id
         )
         
         # Agregamos los items del checklist directamente al objeto (SQLAlchemy handle relationships)

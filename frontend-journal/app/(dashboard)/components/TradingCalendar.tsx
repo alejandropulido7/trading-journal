@@ -8,9 +8,8 @@ import {
   eachDayOfInterval, addMonths, subMonths, isSameMonth 
 } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react"; // Quitamos Filter
-// Si no usas 'cn', elimina el import y usa template strings normales
-// import { cn } from "@/lib/utils"; 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import api from '@/app/lib/api'
 
 // ... (Interfaces DailyStat y CalendarData siguen igual) ...
 interface DailyStat {
@@ -50,14 +49,14 @@ export default function TradingCalendar({ selectedAccountId }: TradingCalendarPr
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1;
       
-      let url = `${API_URL}/calendar-stats?year=${year}&month=${month}`;
+      let url = `${API_URL}/trades/calendar-stats?year=${year}&month=${month}`;
       
       // Usamos la prop recibida
       if (selectedAccountId) {
         url += `&account_id=${selectedAccountId}`;
       }
 
-      const res = await axios.get<CalendarData>(url);
+      const res = await api.get<CalendarData>(url);
       setData(res.data);
     } catch (error) {
       console.error("Error cargando calendario", error);

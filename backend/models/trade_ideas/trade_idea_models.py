@@ -10,6 +10,7 @@ class TradeIdea(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     strategy_id = Column(Integer, ForeignKey("strategies.id"))
     status = Column(String, default="DRAFT") # Puede ser DRAFT, EXECUTED, DISCARDED
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     # Relaciones
     strategy = relationship("Strategy")
@@ -19,6 +20,7 @@ class TradeIdea(Base):
     evidences = relationship("TimeframeEvidence", back_populates="trade_idea", cascade="all, delete-orphan")
     # Una idea puede resultar en uno o varios trades (ej. si haces re-entradas)
     trades = relationship("Trade", back_populates="trade_idea")
+    owner = relationship("User")
 
 class TradeIdeaItem(Base):
     """Guarda si el usuario marcó el checkbox y qué dirección eligió para una condición específica"""

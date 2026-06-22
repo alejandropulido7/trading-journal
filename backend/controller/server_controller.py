@@ -4,10 +4,12 @@ from typing import List
 from core.postgres_database import get_db
 from schemas.servers.server_schema import ServerResponse, ServerCreate
 from models import Server
+from core.dependencies_auth import get_current_user
 
 router = APIRouter(
     prefix="/servers",
-    tags=["servers"]
+    tags=["servers"],
+    dependencies=[Depends(get_current_user)]
 )
 
 # GET: Listar todos

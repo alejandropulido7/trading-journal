@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TradeIdea } from "./types";
 import TradeIdeaModal from "./components/TradeIdeaModal";
+import api from '@/app/lib/api'
 
 export default function TradeIdeasPage() {
   const [ideas, setIdeas] = useState<TradeIdea[]>([]);
@@ -31,7 +32,7 @@ export default function TradeIdeasPage() {
     setLoading(true);
     try {
       const skip = currentPage * limit;
-      const res = await axios.get<TradeIdea[]>(`${API_URL}/trade-ideas/`, {
+      const res = await api.get<TradeIdea[]>(`${API_URL}/trade-ideas/`, {
         params: { start_date: startDate, end_date: endDate, skip, limit }
       });
       setIdeas(res.data);
@@ -47,13 +48,13 @@ export default function TradeIdeasPage() {
   }, [startDate, endDate, page]);
 
   useEffect(() => {
-    axios.get("http://localhost:8000/strategies/").then(res => setStrategies(res.data));
+    api.get("http://localhost:8000/strategies/").then(res => setStrategies(res.data));
   }, []);
 
   // --- ACCIONES ---
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
-      await axios.patch(`${API_URL}/trade-ideas/${id}/status`, { status: newStatus });
+      await api.patch(`${API_URL}/trade-ideas/${id}/status`, { status: newStatus });
       setIdeas(ideas.map(idea => idea.id === id ? { ...idea, status: newStatus as any } : idea));
     } catch (error) {
       alert("Error actualizando estado");
@@ -63,7 +64,7 @@ export default function TradeIdeasPage() {
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar esta idea de trade?")) return;
     try {
-      await axios.delete(`${API_URL}/trade-ideas/${id}`);
+      await api.delete(`${API_URL}/trade-ideas/${id}`);
       setIdeas(ideas.filter(idea => idea.id !== id));
     } catch (error) {
       alert("Error eliminando idea");

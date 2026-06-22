@@ -7,6 +7,7 @@ import { Calendar, TrendingUp, TrendingDown, Clock, Filter, Edit3, Wallet } from
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import EditTradeModal from "./components/EditTradeModal";
+import api from '@/app/lib/api'
 
 interface Trade {
   id: number;
@@ -48,9 +49,9 @@ export default function TradesPage() {
       try {
         // Hacemos las 3 peticiones en paralelo para mayor velocidad
         const [stratRes, emotRes, mistRes] = await Promise.all([
-          axios.get(`${API_URL}/strategies/`),
-          axios.get(`${API_URL}/emotions/`),
-          axios.get(`${API_URL}/mistakes/`)
+          api.get(`${API_URL}/strategies/`),
+          api.get(`${API_URL}/trades/emotions/`),
+          api.get(`${API_URL}/trades/mistakes/`)
         ]);
         setStrategies(stratRes.data);
         setEmotions(emotRes.data);
@@ -70,7 +71,7 @@ export default function TradesPage() {
   const fetchTrades = async () => {
     setLoading(true);
     try {
-      const response = await axios.get<Trade[]>(`${API_URL}/trades/`, {
+      const response = await api.get<Trade[]>(`${API_URL}/trades/`, {
         params: { start_date: startDate, end_date: endDate }
       });
       setTrades(response.data);

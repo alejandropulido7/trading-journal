@@ -1,10 +1,11 @@
 from pydantic import BaseModel, EmailStr, Field
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    name: str
+    email: str
     password: str = Field(
         ..., 
-        min_length=8, 
+        min_length=2, 
         max_length=72, 
         description="La contraseña no puede exceder los 72 caracteres"
     )

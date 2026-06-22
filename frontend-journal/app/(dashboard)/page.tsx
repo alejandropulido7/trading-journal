@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
 import Link from "next/link";
 import { format } from "date-fns";
 import { 
@@ -15,6 +14,7 @@ import TradingCalendar from "./components/TradingCalendar";
 import BalanceChart from "./components/BalanceChart";
 import AdvancedStats from "./components/AdvancedStats";
 import RiskStatusCard from "./components/RiskStatusCard";
+import api from '@/app/lib/api'
 
 // Interfaces
 interface DashboardData {
@@ -61,7 +61,7 @@ export default function Dashboard() {
 
   // 1. Cargar la lista de cuentas (solo una vez)
   useEffect(() => {
-    axios.get(`${API_URL}/accounts/`)
+    api.get(`${API_URL}/accounts/`)
     .then(res => {
       const response:AccountSimple[] = res.data;
       return response.filter(dataFilter => dataFilter.active != false);
@@ -74,12 +74,12 @@ export default function Dashboard() {
     const fetchStats = async () => {
       setLoading(true); // Opcional: mostrar loading en las cards
       try {
-        let url = `${API_URL}/dashboard-stats`;
+        let url = `${API_URL}/trades/dashboard-stats`;
         if (selectedAccount) {
             url += `?account_id=${selectedAccount}`;
         }
         
-        const res = await axios.get<DashboardData>(url);
+        const res = await api.get<DashboardData>(url);
         setStats(res.data);
       } catch (error) {
         console.error("Error cargando dashboard:", error);

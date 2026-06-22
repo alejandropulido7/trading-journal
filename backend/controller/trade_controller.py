@@ -11,20 +11,28 @@ from schemas.trades.trade_schema import (
     TradeResponse, TradeAnalysisUpdate, DashboardStats, 
     CalendarResponse, EmotionResponse, MistakeResponse, StrategyResponse
 )
+from core.dependencies_auth import get_current_user
+from models.user.user_model import User
 
-router = APIRouter(tags=["Trades"])
+router = APIRouter(
+    prefix="/trades",
+    tags=["Trades"],
+    dependencies=[Depends(get_current_user)]
+    )
 
-def get_trade_service(db: Session = Depends(get_db)):
+def get_trade_service(db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user)):
     trade_repo = TradeRepositoryPostgres(db)
     account_repo = PostgresAccountRepository(db)
-    retrieve_trades_repo = MT5SyncRepository()  # Instancia del repositorio de sincronización
-    return TradeService(trade_repo, account_repo, retrieve_trades_repo)
+    retrieve_trades_repo = MT5SyncRepository()
+    
+    return TradeService(trade_repo, account_repo, retrieve_trades_repo, current_user)
 
 @router.post("/sync-all")
 def sync_all_accounts(service: TradeService = Depends(get_trade_service)):
     return service.sync_all_accounts()
 
-@router.get("/trades/", response_model=List[TradeResponse])
+@router.get("/", response_model=List[TradeResponse])
 def get_trades_route(
     start_date: Optional[str] = None, 
     end_date: Optional[str] = None,
@@ -32,7 +40,7 @@ def get_trades_route(
 ):
     return service.get_trades(start_date, end_date)
 
-@router.patch("/trades/{trade_id}")
+@router.patch("/{trade_id}")
 def update_trade_analysis(
     trade_id: int, 
     analysis: TradeAnalysisUpdate, 

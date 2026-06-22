@@ -32,7 +32,7 @@ class AccountService:
         account = self.repo.get_by_id(account_id)
         return self.repo.delete(account, account_id)
 
-    def create_account(self, account: AccountCreate):
+    def create_account(self, account: AccountCreate, user_id: int):
         encrypted_password = security.encrypt(account.password)
         create_account = Account(
             # Datos de conexión
@@ -58,6 +58,7 @@ class AccountService:
             max_drawdown_limit = account.max_drawdown_limit,    # % (Ej: 10.0)
             consistency_rule = account.consistency_rule,
             start_date=account.start_date,
+            user_id = user_id,
             
             active=True 
         )

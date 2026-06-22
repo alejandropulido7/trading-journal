@@ -7,10 +7,13 @@ class Strategy(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True)
     description = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
     
     # Relación 1 a Muchos con StrategyItem
     items = relationship("StrategyItem", back_populates="strategy", cascade="all, delete-orphan")
     trades = relationship("Trade", back_populates="strategy")
+    owner = relationship("User")
 
 class StrategyItem(Base):
     __tablename__ = "strategy_items"

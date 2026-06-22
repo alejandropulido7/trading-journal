@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Image as ImageIcon, ClipboardPaste } from "lucide-react";
+import api from '@/app/lib/api'
 
 interface EvidenceDraft {
   tempId: number;
@@ -125,7 +126,7 @@ export default function TradeIdeaModal({ isOpen, onClose, onSuccess, strategies 
         }))
       };
 
-      const res = await axios.post("http://localhost:8000/trade-ideas/", ideaPayload);
+      const res = await api.post("http://localhost:8000/trade-ideas/", ideaPayload);
       const newIdeaId = res.data.id;
 
       // POST 2: Transmisión Multipart/form-data asíncrona concurrente
@@ -138,7 +139,7 @@ export default function TradeIdeaModal({ isOpen, onClose, onSuccess, strategies 
           formData.append("note", ev.note);
           formData.append("file", ev.file);
 
-          return axios.post(`http://localhost:8000/trade-ideas/${newIdeaId}/evidences/`, formData, {
+          return api.post(`http://localhost:8000/trade-ideas/${newIdeaId}/evidences/`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
         });
