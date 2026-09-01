@@ -33,6 +33,7 @@ services:
       VPS_API_KEY: ${VPS_API_KEY}
       SECURITY_KEY_ACCOUNTS: ${SECURITY_KEY_ACCOUNTS}
       SECRET_KEY_USER: ${SECRET_KEY_USER}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
   # 3. Frontend (Next.js) - Lo configuraremos después
   # frontend:
   #   build: ./frontend

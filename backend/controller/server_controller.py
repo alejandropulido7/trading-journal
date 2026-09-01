@@ -8,18 +8,24 @@ from core.dependencies_auth import get_current_user
 
 router = APIRouter(
     prefix="/servers",
-    tags=["servers"],
+    tags=["Servers"],
     dependencies=[Depends(get_current_user)]
 )
 
 # GET: Listar todos
-@router.get("/", response_model=List[ServerResponse])
+@router.get("/", response_model=List[ServerResponse], summary="List all servers")
 def get_servers(db: Session = Depends(get_db)):
+    """
+    Returns a list of all trading servers configured in the system.
+    """
     return db.query(Server).all()
 
 # POST: Crear nuevo
-@router.post("/", response_model=ServerResponse)
+@router.post("/", response_model=ServerResponse, summary="Create a new server")
 def create_server(server: ServerCreate, db: Session = Depends(get_db)):
+    """
+    Registers a new trading server in the database.
+    """
     # Verificar si ya existe
     existing = db.query(Server).filter(Server.name == server.name).first()
     if existing:

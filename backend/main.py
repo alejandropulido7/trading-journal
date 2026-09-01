@@ -7,6 +7,7 @@ from controller import server_controller, account_controller, trade_controller, 
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from core.exceptions import NotFoundError, BusinessLogicError
+import os
 
 # Crear tablas al iniciar
 postgres_database.Base.metadata.create_all(bind=postgres_database.engine)
@@ -38,7 +39,15 @@ async def lifespan(app: FastAPI):
         db.close()
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Trading Journal API",
+    description="""
+API for the Trading Journal application. 
+This API handles user authentication, trading accounts, strategies, trade synchronization, and performance analysis.
+""",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 ######## ROUTES #######
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -49,6 +58,10 @@ app.include_router(trade_controller.router)
 app.include_router(strategy_controller.router)
 app.include_router(trade_idea_controller.router)
 app.include_router(auth_controller.router)
+
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+
+print(f"ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")  # Debugging line to check the origins
 
 app.add_middleware(
     CORSMiddleware,

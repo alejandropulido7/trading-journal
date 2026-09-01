@@ -36,29 +36,39 @@ class AccountController:
     
 
 
-@router.get("/", response_model=List[AccountResponse])
+@router.get("/", response_model=List[AccountResponse], summary="Get all user accounts")
 def get_accounts(controller: AccountController = Depends()):
+    """
+    Returns a list of all trading accounts belonging to the authenticated user.
+    """
     return controller.get_accounts()
 
 
-@router.patch("/{account_id}", response_model=AccountResponse)
+@router.patch("/{account_id}", response_model=AccountResponse, summary="Update account status")
 def update_account(
     account_id: int, 
     data: AccountUpdate, 
     controller: AccountController = Depends()
 ):
+    """
+    Updates the status or details of a specific trading account.
+    """
     return controller.update_account(account_id, data)
 
 
 # 1. Registrar Cuenta
-@router.post("/", response_model= AccountResponse)
+@router.post("/", response_model= AccountResponse, summary="Create a new account")
 def create_account(account_data: AccountCreate, 
                    controller: AccountController = Depends()):
-    
+    """
+    Creates a new trading account for the authenticated user.
+    """
     return controller.create_account(account_data)
 
 # 2. Endpoint DELETE
-@router.delete("/{account_id}")
+@router.delete("/{account_id}", summary="Delete an account")
 def delete_account(account_id: int, controller: AccountController = Depends()):
-
+    """
+    Removes a trading account from the system.
+    """
     return controller.delete_account(account_id)
